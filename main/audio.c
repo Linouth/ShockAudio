@@ -12,7 +12,12 @@ static const char* TAG = "Audio";
 static const int i2s_num = 0;
 
 static xTaskHandle s_audio_handle = NULL;
+
 static RingbufHandle_t s_ringbuf = NULL;
+static RingbufHandle_t s_ringbuf_s = NULL;  // Secondary ringbuffer for mixing sources
+// TODO: Add function to combine buffers if needed
+// And add state struct to define which source goes to which buffer (With weights for mixing)
+// This struct will be passed to the tasks for them to check if anything needs to be done
 
 void i2s_init() {
     i2s_config_t i2s_config = {
@@ -72,6 +77,8 @@ void audio_task(void *arg) {
     }
 }
 
+// TODO: Add pointer to ringbufhandle to generalize this function
+// (This pointer can be found in state struct)
 size_t audio_write_ringbuf(const uint8_t *data, size_t size) {
     BaseType_t done = xRingbufferSend(s_ringbuf, data, size, portMAX_DELAY);
     if (done)
