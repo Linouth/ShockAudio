@@ -16,3 +16,8 @@ Advanced:
     - [ ] (Wayyy later) Add more advanced codecs like aptX [Unofficial open source implementation](https://github.com/Arkq/openaptx)
 - [ ] Add some wifi capabilities
 - [ ] Add spotify connect support 
+
+
+### Interesting reads
+- [Audio over Bluetooth: most detailed information about profiles, codecs, and devices](https://habr.com/en/post/456182/)
+- [Bluetooth stack modifications to improve audio quality on headphones without AAC, aptX, or LDAC codecs](https://habr.com/en/post/456476/)
