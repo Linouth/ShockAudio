@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
-void sd_init();
-void sd_close();
+#define SDREAD_BUF_SIZE 1024
+
+void sd_task_start();
 int sd_open_file(char* filename);
-size_t sd_get_data(uint8_t* buf, int read_len);
 
 #endif
