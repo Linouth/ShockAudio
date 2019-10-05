@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define SDREAD_BUF_SIZE 1024
+#define SDREAD_BUF_SIZE 8192
 
 void sd_task_start();
 int sd_open_file(char* filename);

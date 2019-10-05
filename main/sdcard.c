@@ -70,10 +70,6 @@ void sd_close() {
 }
 
 void sd_task(void *arg) {
-    /* UBaseType_t uxHighWaterMark; */
-
-    /* uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL); */
-    /* ESP_LOGD(TAG, "Words free 1: %d", uxHighWaterMark); */
 
     uint8_t *data = calloc(SDREAD_BUF_SIZE, sizeof(char));
     size_t bytes_read, bytes_written;
@@ -94,8 +90,6 @@ void sd_task(void *arg) {
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
         bytes_written = audio_write_ringbuf(data, bytes_read);
         ESP_LOGD(TAG, "Bytes written to ringbuffer: %u", bytes_written);
-        /* uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL); */
-        /* ESP_LOGD(TAG, "Words free 2: %d", uxHighWaterMark); */
     }
 
     // TODO: This will never run
@@ -107,8 +101,7 @@ void sd_task_start() {
     while (sd_init() != 0)
         vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    // TODO: Proper task stack size
-    xTaskCreate(sd_task, "SDCard", SDREAD_BUF_SIZE * 2, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
+    xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
 }
 
 int sd_open_file(char* filename) {

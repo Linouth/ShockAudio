@@ -52,15 +52,22 @@ void i2s_destroy() {
 }
 
 void audio_task(void *arg) {
-    uint8_t* data;
+        UBaseType_t uxHighWaterMark;
+    int16_t* data;
     size_t bytes_received;
     size_t bytes_written;
     for (;;) {
-        data = (uint8_t *) xRingbufferReceive(s_ringbuf, &bytes_received, portMAX_DELAY);
-        if (bytes_received != 0) {
+        data = (int16_t *) xRingbufferReceive(s_ringbuf, &bytes_received, 500/portTICK_PERIOD_MS);
+        if (bytes_received != 0 && data != NULL) {
             ESP_LOGD(TAG, "Received %u bytes for DMA buffer", bytes_received);
+            for (int i = 0; i < bytes_received/2; i++) {
+                data[i] = data[i] >> 4;
+            }
             i2s_write(i2s_num, data, bytes_received, &bytes_written, portMAX_DELAY);
             vRingbufferReturnItem(s_ringbuf, data);
+        } else {
+            ESP_LOGD(TAG, "Buffer empty, clearing DMA");
+            i2s_zero_dma_buffer(i2s_num);
         }
     }
 }
@@ -85,6 +92,5 @@ void audio_task_start() {
 
     i2s_init();
 
-    // TODO: Also fix stack size
-    xTaskCreate(audio_task, "Audio", DMA_SIZE, NULL, configMAX_PRIORITIES-3, &s_audio_handle);
+    xTaskCreate(audio_task, "Audio", DMA_SIZE/4, NULL, configMAX_PRIORITIES-3, &s_audio_handle);
 }
