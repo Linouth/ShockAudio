@@ -19,6 +19,9 @@ Advanced:
 - [ ] Add some wifi capabilities
 - [ ] Add spotify connect support 
 
+Maybe:
+- [ ] Split into separate ESP-IDF components
+
 
 ### Interesting reads
 - [Audio over Bluetooth: most detailed information about profiles, codecs, and devices](https://habr.com/en/post/456182/)
