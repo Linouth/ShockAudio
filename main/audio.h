@@ -19,8 +19,8 @@ enum audio_source {
 
 struct audio_state {
     uint8_t *buffer[BUF_COUNT];
-    double bufferWeight[BUF_COUNT];
-    int bufferAssigned[SOURCE_COUNT];
+    double buffer_weight[BUF_COUNT];
+    int buffer_assigned[SOURCE_COUNT];
     int running;
 };
 
