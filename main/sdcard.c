@@ -70,11 +70,17 @@ void sd_close() {
 }
 
 void sd_task(void *arg) {
+    struct audio_state *state = (struct audio_state *)arg;
 
     uint8_t *data = calloc(SDREAD_BUF_SIZE, sizeof(char));
     size_t bytes_read, bytes_written;
     ESP_LOGD(TAG, "Starting SD loop");
     for (;;) {
+        if (state->bufferAssigned[AS_SDCARD] == -1) {
+            ESP_LOGD(TAG, "No buffer assigned");
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            continue;
+        }
         if (!fd_OK) {
             ESP_LOGD(TAG, "No file selected");
             vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -88,7 +94,7 @@ void sd_task(void *arg) {
         }
 
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
-        bytes_written = audio_write_ringbuf(data, bytes_read);
+        bytes_written = audio_write_ringbuf(state->buffer[state->bufferAssigned[AS_SDCARD]], data, bytes_read);
         ESP_LOGD(TAG, "Bytes written to ringbuffer: %u", bytes_written);
     }
 
@@ -97,14 +103,20 @@ void sd_task(void *arg) {
     sd_close();
 }
 
-void sd_task_start() {
+void sd_task_start(struct audio_state *state) {
     while (sd_init() != 0)
         vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
+    xTaskCreate(sd_task, "SDCard", 2048, state, configMAX_PRIORITIES - 4, s_sd_task_handle);
 }
 
 int sd_open_file(char* filename) {
+    if (fd_OK) {
+        // Properly close fd if available
+        fclose(fd);
+        fd_OK = 0;
+    }
+
     ESP_LOGD(TAG, "Opening file %s", filename);
     fd = fopen(filename, "rb");
     if (!fd)
