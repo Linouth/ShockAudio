@@ -94,7 +94,7 @@ void sd_task(void *arg) {
         }
 
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
-        bytes_written = audio_write_ringbuf(state->buffer[state->buffer_assigned[SOURCE_SDCARD]], data, bytes_read);
+        bytes_written = audio_write_ringbuf(state->buffer[state->buffer_assigned[SOURCE_SDCARD]].data, data, bytes_read);
         ESP_LOGD(TAG, "Bytes written to ringbuffer: %u", bytes_written);
     }
 

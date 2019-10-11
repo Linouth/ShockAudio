@@ -11,12 +11,12 @@ const char* TAG = "Main";
 esp_err_t app_main(void) {
 
     struct audio_state state = {
-        .buffer_weight = {0},
+        .buffer = {{0}},
         .buffer_assigned = {-1},
         .running = 1
     };
 
-    state.buffer_weight[0] = 1;
+    state.buffer[0].weight = 1;
     state.buffer_assigned[SOURCE_SDCARD] = 0;
 
     audio_task_start(&state);
@@ -26,7 +26,7 @@ esp_err_t app_main(void) {
     // TODO: Proper system to check stuff like this
     double total_weight = 0;
     for (int i = 0; i < BUF_COUNT; i++) {
-        total_weight += state.buffer_weight[i];
+        total_weight += state.buffer[i].weight;
     }
     if (total_weight > 1)
         ESP_LOGW(TAG, "WARING: Combined weight of the buffers is %f", total_weight);

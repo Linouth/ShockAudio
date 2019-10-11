@@ -13,6 +13,8 @@ static const int i2s_num = 0;
 
 static xTaskHandle s_audio_handle = NULL;
 
+static int16_t *output_buffer = NULL;
+
 // TODO: Add function to combine buffers if needed
 
 void i2s_init() {
@@ -57,21 +59,50 @@ void audio_task(void *arg) {
 
     int16_t* data;
     size_t bytes_received;
+    size_t bytes_received_max = 0;
     size_t bytes_written;
+    int i, j;
+
     for (;;) {
-        data = (int16_t *) xRingbufferReceive(state->buffer[0], &bytes_received, 500/portTICK_PERIOD_MS);
-        if (bytes_received != 0 && data != NULL) {
-            ESP_LOGD(TAG, "Received %u bytes for DMA buffer", bytes_received);
-            for (int i = 0; i < bytes_received/2; i++) {
-                data[i] = data[i] >> 4;
+        // Clear output buffer
+        // TODO: Dit kan netter en sneller...
+        for (i = 0; i < bytes_received_max; i++) {
+            output_buffer[i] = 0;
+        }
+        bytes_received_max = 0;
+        // Mix buffers
+        for (i = 0; i < BUF_COUNT; i++) {
+            if (state->buffer[i].weight != 0) {  // Skip unused buffers
+                data = (int16_t *) xRingbufferReceive(state->buffer[i].data, &bytes_received, 500/portTICK_PERIOD_MS); 
+
+                if (bytes_received != 0 && data != NULL) {
+                    ESP_LOGD(TAG, "Received %u bytes from buffer %d", bytes_received, i);
+                    for (j = 0; j < bytes_received/2; j++) {
+                        output_buffer[j] += data[j] * state->buffer[i].weight;
+                    }
+
+                    if (bytes_received > bytes_received_max)
+                        bytes_received_max = bytes_received;
+                    vRingbufferReturnItem(state->buffer[i].data, data);
+                }
             }
-            i2s_write(i2s_num, data, bytes_received, &bytes_written, portMAX_DELAY);
-            vRingbufferReturnItem(state->buffer[0], data);
+        }
+
+        if (bytes_received_max != 0) {
+            ESP_LOGD(TAG, "Writing %u bytes to DMA buffer", bytes_received_max);
+            // TODO: Proper volume control
+            for (i = 0; i < bytes_received_max; i++) { // Hakcy way to reduce volume
+                output_buffer[i] = output_buffer[i] >> 4;
+            }
+            i2s_write(i2s_num, output_buffer, bytes_received_max, &bytes_written, portMAX_DELAY);
         } else {
             ESP_LOGD(TAG, "Buffer empty, clearing DMA");
             i2s_zero_dma_buffer(i2s_num);
         }
     }
+
+    // TODO: This will never run
+    free(output_buffer);
 }
 
 size_t audio_write_ringbuf(uint8_t *buf, const uint8_t *data, size_t size) {
@@ -86,13 +117,15 @@ void audio_task_start(struct audio_state *state) {
     // Total size of DMA buffer in bytes (Stereo)
     const int DMA_SIZE = DMA_BUF_LEN * DMA_BUF_COUNT * (BITS_PER_SAMPLE/8) * 2;
 
+    // Initialize buffers
     for (int i = 0; i < BUF_COUNT; i++) {
-        state->buffer[i] = xRingbufferCreate(4*DMA_SIZE, RINGBUF_TYPE_BYTEBUF);
-        if (!state->buffer[i]) {
+        state->buffer[i].data = xRingbufferCreate(BUF_SIZE*DMA_SIZE, RINGBUF_TYPE_BYTEBUF);
+        if (!state->buffer[i].data) {
             ESP_LOGE(TAG, "Could not create Ringbuffer %d", i);
             return;
         }
     }
+    output_buffer = calloc(DMA_SIZE, sizeof(char));
 
     i2s_init();
 
