@@ -16,7 +16,7 @@ esp_err_t app_main(void) {
         .running = 1
     };
 
-    state.buffer[0].weight = 1;
+    state.buffer[0].weight = 1.0;
     state.buffer_assigned[SOURCE_SDCARD] = 0;
 
     audio_task_start(&state);

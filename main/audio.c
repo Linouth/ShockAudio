@@ -66,13 +66,14 @@ void audio_task(void *arg) {
     for (;;) {
         // Clear output buffer
         // TODO: Dit kan netter en sneller...
-        for (i = 0; i < bytes_received_max; i++) {
+        for (i = 0; i < bytes_received_max/2; i++) {
             output_buffer[i] = 0;
         }
         bytes_received_max = 0;
         // Mix buffers
         for (i = 0; i < BUF_COUNT; i++) {
             if (state->buffer[i].weight != 0) {  // Skip unused buffers
+                ESP_LOGD(TAG, "Trying buffer %d", i);
                 data = (int16_t *) xRingbufferReceive(state->buffer[i].data, &bytes_received, 500/portTICK_PERIOD_MS); 
 
                 if (bytes_received != 0 && data != NULL) {
@@ -80,6 +81,7 @@ void audio_task(void *arg) {
                     for (j = 0; j < bytes_received/2; j++) {
                         output_buffer[j] += data[j] * state->buffer[i].weight;
                     }
+                    
 
                     if (bytes_received > bytes_received_max)
                         bytes_received_max = bytes_received;
@@ -91,8 +93,8 @@ void audio_task(void *arg) {
         if (bytes_received_max != 0) {
             ESP_LOGD(TAG, "Writing %u bytes to DMA buffer", bytes_received_max);
             // TODO: Proper volume control
-            for (i = 0; i < bytes_received_max; i++) { // Hakcy way to reduce volume
-                output_buffer[i] = output_buffer[i] >> 4;
+            for (i = 0; i < bytes_received_max/2; i++) { // Hakcy way to reduce volume
+                output_buffer[i] >>= 4;
             }
             i2s_write(i2s_num, output_buffer, bytes_received_max, &bytes_written, portMAX_DELAY);
         } else {
@@ -125,7 +127,7 @@ void audio_task_start(struct audio_state *state) {
             return;
         }
     }
-    output_buffer = calloc(DMA_SIZE, sizeof(char));
+    output_buffer = calloc(DMA_SIZE * BUF_SIZE, sizeof(char));
 
     i2s_init();
 
