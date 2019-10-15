@@ -11,7 +11,8 @@ Basic:
 - [x] Add pointer to ringbuffer to the audio\_write\_ringbuf function.
 - [ ] Add support for multiple sample rates (stretch or shrink signal)
 - [ ] Add support for multiple bit per sample (pad with zeros or remove data)
-- [x] Add basic mixing of channels *(Still needs testing)*
+- [ ] Add basic mixing of channels **(Still needs testing)**
+    - Tested and it's not yet working
 
 Advanced:
 - [ ] Add bluetooth sink as audio source (duh...)
