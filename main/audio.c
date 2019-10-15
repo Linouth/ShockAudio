@@ -20,10 +20,11 @@ static int16_t *output_buffer = NULL;
 void i2s_init() {
     i2s_config_t i2s_config = {
         .mode = I2S_MODE_MASTER | I2S_MODE_TX,
-        .sample_rate = 8000,
+        .sample_rate = 44100,
         .bits_per_sample = BITS_PER_SAMPLE,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
-        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB,
+        /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB, */
+        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB,
         /* .dma_buf_count = 8, */
         /* .dma_buf_len = 64, */
         .dma_buf_count = DMA_BUF_COUNT,
@@ -78,6 +79,7 @@ void audio_task(void *arg) {
 
                 if (bytes_received != 0 && data != NULL) {
                     ESP_LOGD(TAG, "Received %u bytes from buffer %d", bytes_received, i);
+                    printf("data: %p\noutputbuffer: %p\n", data, output_buffer);
                     for (j = 0; j < bytes_received/2; j++) {
                         output_buffer[j] += data[j] * state->buffer[i].weight;
                     }
@@ -100,6 +102,7 @@ void audio_task(void *arg) {
         } else {
             ESP_LOGD(TAG, "Buffer empty, clearing DMA");
             i2s_zero_dma_buffer(i2s_num);
+            vTaskDelay(1000/portTICK_PERIOD_MS);
         }
     }
 
@@ -128,6 +131,10 @@ void audio_task_start(struct audio_state *state) {
         }
     }
     output_buffer = calloc(DMA_SIZE * BUF_SIZE, sizeof(char));
+    if (!output_buffer) {
+        ESP_LOGE(TAG, "Could not allocate memory for audio output_buffer");
+        abort();
+    }
 
     i2s_init();
 

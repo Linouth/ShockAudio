@@ -12,10 +12,14 @@ Basic:
 - [ ] Add support for multiple sample rates (stretch or shrink signal)
 - [ ] Add support for multiple bit per sample (pad with zeros or remove data)
 - [x] Add basic mixing of channels **(Still needs testing with another source)**
+- [ ] Fix endianness (MSB as i2s output)
 
 Advanced:
-- [ ] Add bluetooth sink as audio source (duh...)
+- [-] Add bluetooth sink as audio source (duh...)
+    - It is kind of working? Can connect, can receive data, data still needs to be reshaped
+    - [ ] Add SSP
     - [ ] (Wayyy later) Add more advanced codecs like aptX [Unofficial open source implementation](https://github.com/Arkq/openaptx)
+- [ ] Rework all memory related code, it's a mess right now...
 - [ ] Add some wifi capabilities
 - [ ] Add spotify connect support 
 

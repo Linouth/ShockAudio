@@ -1,4 +1,5 @@
 #include "sdcard.h"
+#include "bluetooth.h"
 #include "audio.h"
 
 #include "freertos/FreeRTOS.h"
@@ -17,11 +18,15 @@ esp_err_t app_main(void) {
     };
 
     state.buffer[0].weight = 1.0;
-    state.buffer_assigned[SOURCE_SDCARD] = 0;
+    /* state.buffer_assigned[SOURCE_SDCARD] = 0; */
+    state.buffer_assigned[SOURCE_BLUETOOTH] = 0;
+
+    /* sd_task_start(&state); */
+    /* sd_open_file("/sdcard/test.wav"); */
+
+    bt_task_start(&state);
 
     audio_task_start(&state);
-    sd_task_start(&state);
-    sd_open_file("/sdcard/test.wav");
 
     // TODO: Proper system to check stuff like this
     double total_weight = 0;

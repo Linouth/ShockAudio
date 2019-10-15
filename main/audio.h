@@ -7,7 +7,7 @@
 #define ENABLE_SDCARD
 
 #define BUF_COUNT 4
-#define BUF_SIZE 4  // Times DMA
+#define BUF_SIZE 2  // Times DMA
 
 #define DMA_BUF_COUNT 2
 #define DMA_BUF_LEN 1024
@@ -15,19 +15,23 @@
 
 enum audio_source {
     SOURCE_SDCARD = 0,
+    SOURCE_BLUETOOTH,
     SOURCE_COUNT
 };
 
 struct buffer_struct {
     uint8_t *data;
     double weight;
+    int sample_rate;
 };
 
 struct audio_state {
-    /* uint8_t *buffer[BUF_COUNT]; */
-    /* double buffer_weight[BUF_COUNT]; */
     struct buffer_struct buffer[BUF_COUNT];
     int buffer_assigned[SOURCE_COUNT];
+
+    int sample_rate;
+    int bits_per_sample;
+
     int running;
 };
 
