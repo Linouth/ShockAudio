@@ -1,6 +1,9 @@
 #include "sdcard.h"
 #include "bluetooth.h"
+#include "tone.h"
 #include "audio.h"
+
+#include "config.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -18,27 +21,42 @@ esp_err_t app_main(void) {
     };
 
     state.buffer[0].weight = 1.0;
-    /* state.buffer_assigned[SOURCE_SDCARD] = 0; */
-    state.buffer_assigned[SOURCE_BLUETOOTH] = 0;
-
-    /* sd_task_start(&state); */
-    /* sd_open_file("/sdcard/test.wav"); */
-
-    bt_task_start(&state);
+    state.buffer[1].weight = 1.0;
+    state.buffer[2].weight = 1.0;
+    state.buffer_assigned[SOURCE_SDCARD] = 0;
+    state.buffer_assigned[SOURCE_BLUETOOTH] = 1;
+    state.buffer_assigned[SOURCE_TONE] = 2;
 
     audio_task_start(&state);
 
+#ifdef ENABLE_SDCARD
+    sd_task_start(&state);
+    sd_open_file("/sdcard/test.wav");
+#endif
+
+#ifdef ENABLE_BLUETOOTH
+    bt_task_start(&state);
+#endif
+
+#ifdef ENABLE_TONE
+    tone_task_start(&state);
+#endif
+
     // TODO: Proper system to check stuff like this
+    /*
     double total_weight = 0;
     for (int i = 0; i < BUF_COUNT; i++) {
         total_weight += state.buffer[i].weight;
     }
     if (total_weight > 1)
         ESP_LOGW(TAG, "WARING: Combined weight of the buffers is %f", total_weight);
+    */
 
     // TODO: Some main control loop
-    while (state.running)
+    while (state.running) {
+        tone_gen();
         vTaskDelay(5000/portTICK_PERIOD_MS);
+    }
 
     return 0;
 }

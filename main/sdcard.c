@@ -22,7 +22,7 @@ static xTaskHandle s_sd_task_handle = NULL;
 FILE* fd;
 int fd_OK = 0;
 
-int sd_init() {
+static int sd_init() {
     ESP_LOGI(TAG, "Initializing SD card");
 
     fd_OK = 0;
@@ -61,7 +61,7 @@ int sd_init() {
     return 0;
 }
 
-void sd_close() {
+static void sd_close() {
     if (fd)
         fclose(fd);
 
@@ -69,7 +69,7 @@ void sd_close() {
     ESP_LOGI(TAG, "SDCard Unmounted");
 }
 
-void sd_task(void *arg) {
+static void sd_task(void *arg) {
     struct audio_state *state = (struct audio_state *)arg;
 
     uint8_t *data = calloc(SDREAD_BUF_SIZE, sizeof(char));
@@ -94,7 +94,7 @@ void sd_task(void *arg) {
         }
 
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
-        bytes_written = audio_write_ringbuf(state->buffer[state->buffer_assigned[SOURCE_SDCARD]].data, data, bytes_read);
+        bytes_written = audio_write_ringbuf(data, bytes_read, SOURCE_SDCARD);
         ESP_LOGD(TAG, "Bytes written to ringbuffer: %u", bytes_written);
     }
 

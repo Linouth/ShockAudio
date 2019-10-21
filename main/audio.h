@@ -4,7 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define ENABLE_SDCARD
+#include "freertos/FreeRTOS.h"
+#include "freertos/ringbuf.h"
 
 #define BUF_COUNT 4
 #define BUF_SIZE 2  // Times DMA
@@ -16,11 +17,12 @@
 enum audio_source {
     SOURCE_SDCARD = 0,
     SOURCE_BLUETOOTH,
+    SOURCE_TONE,
     SOURCE_COUNT
 };
 
 struct buffer_struct {
-    uint8_t *data;
+    RingbufHandle_t *data;
     double weight;
     int sample_rate;
 };
@@ -35,7 +37,7 @@ struct audio_state {
     int running;
 };
 
-size_t audio_write_ringbuf(uint8_t *buf, const uint8_t *data, size_t size);
+size_t audio_write_ringbuf(const uint8_t *data, size_t size, const enum audio_source source);
 void audio_task_start(struct audio_state *state);
 
 #endif

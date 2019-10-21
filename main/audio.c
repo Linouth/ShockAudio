@@ -13,18 +13,19 @@ static const int i2s_num = 0;
 
 static xTaskHandle s_audio_handle = NULL;
 
+static struct audio_state *s_state;
 static int16_t *output_buffer = NULL;
 
 // TODO: Add function to combine buffers if needed
 
-void i2s_init() {
+static void i2s_init() {
     i2s_config_t i2s_config = {
         .mode = I2S_MODE_MASTER | I2S_MODE_TX,
-        .sample_rate = 44100,
+        .sample_rate = 8000,
         .bits_per_sample = BITS_PER_SAMPLE,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
-        /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB, */
-        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB,
+        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB,
+        /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB, */
         /* .dma_buf_count = 8, */
         /* .dma_buf_len = 64, */
         .dma_buf_count = DMA_BUF_COUNT,
@@ -49,13 +50,13 @@ void i2s_init() {
     ESP_LOGI(TAG, "Initialization done");
 }
 
-void i2s_destroy() {
+static void i2s_destroy() {
     ESP_LOGI(TAG, "Destroying I2S");
 
     i2s_driver_uninstall(i2s_num);
 }
 
-void audio_task(void *arg) {
+static void audio_task(void *arg) {
     struct audio_state *state = (struct audio_state *) arg;
 
     int16_t* data;
@@ -75,11 +76,11 @@ void audio_task(void *arg) {
         for (i = 0; i < BUF_COUNT; i++) {
             if (state->buffer[i].weight != 0) {  // Skip unused buffers
                 ESP_LOGD(TAG, "Trying buffer %d", i);
-                data = (int16_t *) xRingbufferReceive(state->buffer[i].data, &bytes_received, 500/portTICK_PERIOD_MS); 
+                data = (int16_t *) xRingbufferReceive(state->buffer[i].data, &bytes_received, 10/portTICK_PERIOD_MS); 
 
                 if (bytes_received != 0 && data != NULL) {
                     ESP_LOGD(TAG, "Received %u bytes from buffer %d", bytes_received, i);
-                    printf("data: %p\noutputbuffer: %p\n", data, output_buffer);
+                    /* printf("data: %p\noutputbuffer: %p\n", data, output_buffer); */
                     for (j = 0; j < bytes_received/2; j++) {
                         output_buffer[j] += data[j] * state->buffer[i].weight;
                     }
@@ -110,7 +111,9 @@ void audio_task(void *arg) {
     free(output_buffer);
 }
 
-size_t audio_write_ringbuf(uint8_t *buf, const uint8_t *data, size_t size) {
+size_t audio_write_ringbuf(const uint8_t *data, size_t size, const enum audio_source source) {
+     RingbufHandle_t *buf = s_state->buffer[s_state->buffer_assigned[source]].data;
+
     BaseType_t done = xRingbufferSend(buf, data, size, portMAX_DELAY);
     if (done)
         return size;
@@ -119,6 +122,8 @@ size_t audio_write_ringbuf(uint8_t *buf, const uint8_t *data, size_t size) {
 } 
 
 void audio_task_start(struct audio_state *state) {
+    s_state = state;
+
     // Total size of DMA buffer in bytes (Stereo)
     const int DMA_SIZE = DMA_BUF_LEN * DMA_BUF_COUNT * (BITS_PER_SAMPLE/8) * 2;
 

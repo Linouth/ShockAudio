@@ -5,6 +5,7 @@
 
 idf_component_register(SRCS "main.c"
                             "sdcard.c"
-                            "audio.c"
+                            "tone.c"
                             "bluetooth.c"
+                            "audio.c"
                             INCLUDE_DIRS ".")

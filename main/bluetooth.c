@@ -75,16 +75,10 @@ void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
     }
 }
 
-// TODO: Ugly AF
-uint8_t *buf = NULL;
 void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
     ESP_LOGD(TAG, "Data received: %d bytes", len);
-    // TODO: save data to buffer.
-    
-    if (!buf)
-        return;
 
-    audio_write_ringbuf(buf, data, len);
+    audio_write_ringbuf(data, len, SOURCE_BLUETOOTH);
 }
 
 // TODO: Also hacky...
@@ -93,7 +87,7 @@ void bt_stack_up() {
     esp_bt_dev_set_device_name(dev_name);
     esp_bt_gap_register_callback(bt_gap_cb);
 
-    esp_a2d_register_callback(&bt_a2d_cb);
+    esp_a2d_register_callback(bt_a2d_cb);
     esp_a2d_sink_register_data_callback(bt_a2d_data_cb);
     esp_a2d_sink_init();
 
@@ -112,11 +106,6 @@ void bt_task(void *arg) {
             ESP_LOGD(TAG, "No buffer assigned");
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             continue;
-        }
-
-        if (buf != state->buffer[state->buffer_assigned[SOURCE_BLUETOOTH]].data) {
-            ESP_LOGD(TAG, "Updating Buffer");
-            buf = state->buffer[state->buffer_assigned[SOURCE_BLUETOOTH]].data;
         }
 
         vTaskDelay(1000/portTICK_PERIOD_MS);
