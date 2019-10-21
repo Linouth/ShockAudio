@@ -21,15 +21,14 @@ Advanced:
     - It is kind of working? Can connect, can receive data, data still needs to be reshaped
         - Not really actually
     - [ ] Add SSP
-    - ~~[ ] (Wayyy later) Add more advanced codecs like aptX [Unofficial open source implementation](https://github.com/Arkq/openaptx)~~
+    - [ ] ~~(Wayyy later) Add more advanced codecs like aptX [Unofficial open source implementation](https://github.com/Arkq/openaptx)~~
+        - SBC is actually really good, and probably superior to AptX (After modifications like [2])
 - [ ] Rework all memory related code, it's a mess right now...
+- [ ] Rework the whole modular system and split into ESPIDF components
 - [ ] Add some wifi capabilities
 - [ ] Add spotify connect support 
 
-Maybe:
-- [ ] Split into separate ESP-IDF components
-
 
 ### Interesting reads
-- [Audio over Bluetooth: most detailed information about profiles, codecs, and devices](https://habr.com/en/post/456182/)
-- [Bluetooth stack modifications to improve audio quality on headphones without AAC, aptX, or LDAC codecs](https://habr.com/en/post/456476/)
+- [[1]: Audio over Bluetooth: most detailed information about profiles, codecs, and devices](https://habr.com/en/post/456182/)
+- [[2]: Bluetooth stack modifications to improve audio quality on headphones without AAC, aptX, or LDAC codecs](https://habr.com/en/post/456476/)
