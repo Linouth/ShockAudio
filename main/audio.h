@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "config.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
 
@@ -15,9 +17,15 @@
 #define BITS_PER_SAMPLE I2S_BITS_PER_SAMPLE_16BIT
 
 enum audio_source {
+#ifdef ENABLE_SDCARD
     SOURCE_SDCARD = 0,
+#endif
+#ifdef ENABLE_BLUETOOTH
     SOURCE_BLUETOOTH,
+#endif
+#ifdef ENABLE_TONE
     SOURCE_TONE,
+#endif
     SOURCE_COUNT
 };
 

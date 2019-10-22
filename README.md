@@ -29,6 +29,18 @@ Advanced:
 - [ ] Add spotify connect support 
 
 
+Straight forward tasks:
+- [ ] Move audio\_source enum to some global header (config.h?)
+- [ ] Get rid of audio\_state struct and make a PCM configuration struct
+- [ ] Move audio.c stuff to renderer component
+- [ ] Write function to resample audio data
+- [ ] Write function to transform bits per sample
+- [ ] Create Mixer component
+- [ ] Add states to audio sources (Running, Stopped, Uninitialized, etc.)
+    - With corresponding functions to set and get this state
+    - Possibly suspend main tasks in the source when stopped / paused
+
+
 ### Interesting reads
 - [[1]: Audio over Bluetooth: most detailed information about profiles, codecs, and devices](https://habr.com/en/post/456182/)
 - [[2]: Bluetooth stack modifications to improve audio quality on headphones without AAC, aptX, or LDAC codecs](https://habr.com/en/post/456476/)

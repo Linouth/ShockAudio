@@ -12,50 +12,58 @@
 
 const char* TAG = "Main";
 
+// TODO: Move audio_source enum to some global header
+
 esp_err_t app_main(void) {
 
+    // TODO: get rid of this audio state
     struct audio_state state = {
         .buffer = {{0}},
         .buffer_assigned = {-1},
         .running = 1
     };
 
-    state.buffer[0].weight = 1.0;
-    state.buffer[1].weight = 1.0;
-    state.buffer[2].weight = 1.0;
-    state.buffer_assigned[SOURCE_SDCARD] = 0;
-    state.buffer_assigned[SOURCE_BLUETOOTH] = 1;
-    state.buffer_assigned[SOURCE_TONE] = 2;
+    buffer_t *buffers[SOURCE_COUNT];
+    uint8_t *data;
+    size_t bytes_read;
 
+    // TODO: Move to 'renderer' component
+    // TODO: Create config struct (global PCM config?)
     audio_task_start(&state);
 
 #ifdef ENABLE_SDCARD
-    sd_task_start(&state);
+    sd_task_start();
+    buffers[SOURCE_SDCARD] = sd_get_buffer();
     sd_open_file("/sdcard/test.wav");
 #endif
 
 #ifdef ENABLE_BLUETOOTH
     bt_task_start(&state);
+    /* buffers[SOURCE_BLUETOOTH] = bt_get_buffer(); */
 #endif
 
 #ifdef ENABLE_TONE
     tone_task_start(&state);
+    /* buffers[SOURCE_TONE] = tone_get_buffer(); */
 #endif
 
-    // TODO: Proper system to check stuff like this
-    /*
-    double total_weight = 0;
-    for (int i = 0; i < BUF_COUNT; i++) {
-        total_weight += state.buffer[i].weight;
-    }
-    if (total_weight > 1)
-        ESP_LOGW(TAG, "WARING: Combined weight of the buffers is %f", total_weight);
-    */
+    /**
+     * Main audio loop. Retrieve data from audio source buffers,
+     * reformat it and send it to the mixer
+     */
+    for (;;) {
+        for (int i = 0; i < SOURCE_COUNT; i++) {
+            ESP_LOGD(TAG, "Trying buffer %d", i);
+            data = (uint8_t *)xRingbufferReceive(buffers[i]->data, &bytes_read, 0);
+            
+            if (bytes_read > 0 && data) {
+                // TODO: recode data
+                // TODO: Send data to mixer
 
-    // TODO: Some main control loop
-    while (state.running) {
-        tone_gen();
-        vTaskDelay(5000/portTICK_PERIOD_MS);
+                vRingbufferReturnItem(buffers[i]->data, data);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 
     return 0;
