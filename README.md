@@ -30,15 +30,18 @@ Advanced:
 
 
 Straight forward tasks:
-- [ ] Move audio\_source enum to some global header (config.h?)
-- [ ] Get rid of audio\_state struct and make a PCM configuration struct
-- [ ] Move audio.c stuff to renderer component
+- [x] Move audio\_source enum to some global header (config.h?)
+    - Moved to audio.h global header
+- [x] Get rid of audio\_state struct and make a PCM configuration struct
+- [x] Move audio.c stuff to renderer component
+- [ ] Move SD audio source to its own component
 - [ ] Write function to resample audio data
 - [ ] Write function to transform bits per sample
 - [ ] Create Mixer component
 - [ ] Add states to audio sources (Running, Stopped, Uninitialized, etc.)
     - With corresponding functions to set and get this state
     - Possibly suspend main tasks in the source when stopped / paused
+- [ ] Actually write (fix) Tone and Bluetooth audio sources
 
 
 ### Interesting reads

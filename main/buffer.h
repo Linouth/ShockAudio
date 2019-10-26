@@ -4,14 +4,17 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
 
+#include "audio.h"
+
 #define BUFFER_SIZE 2048
 
 typedef struct {
     RingbufHandle_t data;
-    
-    uint16_t sample_rate;
-    uint8_t bits_per_sample;
-    uint8_t channels;
+    pcm_format format;
 } buffer_t;
+
+
+buffer_t *create_buffer(size_t len);
+void clear_buffer(buffer_t *buf);
 
 #endif

@@ -1,4 +1,3 @@
-#include "sdcard.h"
 #include "audio.h"
 
 #include "freertos/FreeRTOS.h"

@@ -1,7 +1,9 @@
 #include "sdcard.h"
-#include "bluetooth.h"
-#include "tone.h"
+/* #include "bluetooth.h" */
+/* #include "tone.h" */
 #include "audio.h"
+#include "buffer.h"
+#include "audio_renderer.h"
 
 #include "config.h"
 
@@ -9,27 +11,29 @@
 #include "freertos/task.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "driver/i2s.h"
 
 const char* TAG = "Main";
 
-// TODO: Move audio_source enum to some global header
-
 esp_err_t app_main(void) {
 
-    // TODO: get rid of this audio state
-    struct audio_state state = {
-        .buffer = {{0}},
-        .buffer_assigned = {-1},
-        .running = 1
+    renderer_config_t renderer_config = {
+        .sample_rate = 44100,
+        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+        .i2s_num = 0,
+        .pin_config = {
+            .bck_io_num = 26,
+            .ws_io_num = 25,
+            .data_out_num = 22,
+            .data_in_num = I2S_PIN_NO_CHANGE
+        }
     };
 
     buffer_t *buffers[SOURCE_COUNT];
     uint8_t *data;
     size_t bytes_read;
 
-    // TODO: Move to 'renderer' component
-    // TODO: Create config struct (global PCM config?)
-    audio_task_start(&state);
+    renderer_init(&renderer_config);
 
 #ifdef ENABLE_SDCARD
     sd_task_start();
