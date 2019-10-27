@@ -1,6 +1,7 @@
 #ifndef AUDIO_RENDERER_H
 #define AUDIO_RENDERER_H
 
+#include "freertos/FreeRTOS.h"
 #include "driver/i2s.h"
 
 #define BUF_COUNT 4

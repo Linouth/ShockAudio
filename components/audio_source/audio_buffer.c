@@ -1,4 +1,4 @@
-#include "buffer.h"
+#include "audio_buffer.h"
 
 #include "stdlib.h"
 
@@ -9,7 +9,7 @@ buffer_t *create_buffer(size_t len) {
     if (!buf)
         return NULL;
 
-    buf->data = xRingbufferCreate(BUFFER_SIZE, RINGBUF_TYPE_BYTEBUF);
+    buf->data = xRingbufferCreate(len, RINGBUF_TYPE_BYTEBUF);
     return buf;
 }
 

@@ -1,14 +1,18 @@
-#include "sdcard.h"
+/* #include "sdcard.h" */
 /* #include "bluetooth.h" */
 /* #include "tone.h" */
-#include "audio.h"
-#include "buffer.h"
+/* #include "audio.h" */
+/* #include "buffer.h" */
+
 #include "audio_renderer.h"
+#include "audio_source.h"
+#include "audio_buffer.h"
 
 #include "config.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/ringbuf.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "driver/i2s.h"

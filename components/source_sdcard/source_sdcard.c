@@ -1,6 +1,6 @@
-#include "sdcard.h"
-#include "audio.h"
-#include "buffer.h"
+#include "source_sdcard.h"
+#include "audio_source.h"
+#include "audio_buffer.h"
 
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
@@ -20,15 +20,13 @@ static const char* TAG = "SDCard";
 
 static xTaskHandle s_sd_task_handle = NULL;
 
-/* static RingbufHandle_t *s_out_buffer = NULL; */
+static source_status_t status = UNINITIALIZED;
 static buffer_t *s_out_buffer;
 
 FILE* fd;
 int fd_OK = 0;
 
 static int sd_init() {
-    ESP_LOGI(TAG, "Initializing SD card");
-
     fd_OK = 0;
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
@@ -78,17 +76,20 @@ static void sd_close() {
     ESP_LOGI(TAG, "Memory Free'd");
 }
 
+// TODO: Check filetype
+// TODO: Read in PCM data from wav file
 static void sd_task(void *arg) {
     uint8_t *data = calloc(SDREAD_BUF_SIZE, sizeof(char));
     size_t bytes_read;
 
     ESP_LOGD(TAG, "Starting SD loop");
     for (;;) {
-        /* if (state->buffer_assigned[SOURCE_SDCARD] == -1) { */
-        /*     ESP_LOGD(TAG, "No buffer assigned"); */
-        /*     vTaskDelay(1000 / portTICK_PERIOD_MS); */
-        /*     continue; */
-        /* } */
+
+        // Wait if not running
+        // TODO: This can probaly be cone with an interrupt
+        if (status != RUNNING)
+            vTaskDelay(100/portTICK_PERIOD_MS);
+
         if (!fd_OK) {
             ESP_LOGD(TAG, "No file selected");
             vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -112,21 +113,7 @@ static void sd_task(void *arg) {
     sd_close();
 }
 
-void sd_task_start() {
-    while (sd_init() != 0)
-        vTaskDelay(1000/portTICK_PERIOD_MS);
-
-    s_out_buffer = calloc(1, sizeof(buffer_t));
-    s_out_buffer->data = xRingbufferCreate(SDREAD_BUF_SIZE, RINGBUF_TYPE_BYTEBUF);
-    if (!s_out_buffer->data) {
-        ESP_LOGE(TAG, "Could not allocate output buffer");
-        exit(1);
-    }
-
-    xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
-}
-
-int sd_open_file(char* filename) {
+int source_sdcard_play_file(char* filename) {
     if (fd_OK) {
         // Properly close fd if available
         fclose(fd);
@@ -141,6 +128,37 @@ int sd_open_file(char* filename) {
     return 0;
 }
 
-buffer_t *sd_get_buffer() {
+
+void source_sdcard_init() {
+    ESP_LOGI(TAG, "Initializing SD card");
+
+    while(sd_init() != 0)
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+
+    s_out_buffer = create_buffer(SDREAD_BUF_SIZE);
+    if (!s_out_buffer->data) {
+        ESP_LOGE(TAG, "Could not allocate output buffer");
+        exit(1);
+    }
+
+    xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
+
+    status = INITIALIZED;
+    ESP_LOGI(TAG, "Initialized");
+}
+
+int source_sdcard_start() {
+    ESP_LOGI(TAG, "Starting");
+
+    if (status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Source not ready");
+        return -1;
+    }
+
+    status = RUNNING;
+    return 0;
+}
+
+buffer_t *source_sdcard_get_buffer() {
     return s_out_buffer;
 }
