@@ -6,7 +6,7 @@
 
 #include "pcm.h"
 
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE 2048*4
 
 typedef struct {
     RingbufHandle_t data;

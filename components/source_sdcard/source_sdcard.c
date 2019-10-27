@@ -59,7 +59,6 @@ static int sd_init() {
 
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
-    ESP_LOGI(TAG, "Initialization done");
     return 0;
 }
 
@@ -87,19 +86,23 @@ static void sd_task(void *arg) {
 
         // Wait if not running
         // TODO: This can probaly be cone with an interrupt
-        if (status != RUNNING)
+        if (status != RUNNING) {
             vTaskDelay(100/portTICK_PERIOD_MS);
+            continue;
+        }
 
         if (!fd_OK) {
             ESP_LOGD(TAG, "No file selected");
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             continue;
         }
+
         bytes_read = fread(data, sizeof(char), SDREAD_BUF_SIZE, fd);
         if (bytes_read < SDREAD_BUF_SIZE) {
             ESP_LOGD(TAG, "At end of file");
             fclose(fd);
             fd_OK = 0;
+            status = STOPPED;
         }
 
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
@@ -114,6 +117,11 @@ static void sd_task(void *arg) {
 }
 
 int source_sdcard_play_file(char* filename) {
+    if (status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Can't play file, still uninitialized");
+        return -1;
+    }
+
     if (fd_OK) {
         // Properly close fd if available
         fclose(fd);

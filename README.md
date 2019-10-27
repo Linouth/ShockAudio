@@ -35,8 +35,8 @@ Straight forward tasks:
 - [x] Get rid of audio\_state struct and make a PCM configuration struct
 - [x] Move audio.c stuff to renderer component
 - [x] Create general 'Audio Source' component with structs/enums for state etc
-- [ ] Move SD audio source to its own component
-    - Done, still needs testing though.
+- [x] Move SD audio source to its own component
+    - ~~Done, still needs testing though.~~
 - [ ] Write function to resample audio data
 - [ ] Write function to transform bits per sample
 - [ ] Create Mixer component

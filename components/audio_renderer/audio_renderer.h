@@ -9,7 +9,6 @@
 
 #define DMA_BUF_COUNT 2
 #define DMA_BUF_LEN 1024
-#define BITS_PER_SAMPLE I2S_BITS_PER_SAMPLE_16BIT
 
 
 typedef struct {

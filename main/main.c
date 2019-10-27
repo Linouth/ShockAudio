@@ -7,6 +7,7 @@
 #include "audio_renderer.h"
 #include "audio_source.h"
 #include "audio_buffer.h"
+#include "source_sdcard.h"
 
 #include "config.h"
 
@@ -40,9 +41,11 @@ esp_err_t app_main(void) {
     renderer_init(&renderer_config);
 
 #ifdef ENABLE_SDCARD
-    sd_task_start();
-    buffers[SOURCE_SDCARD] = sd_get_buffer();
-    sd_open_file("/sdcard/test.wav");
+    source_sdcard_init();
+    buffers[SOURCE_SDCARD] = source_sdcard_get_buffer();
+    /* source_sdcard_play_file("/sdcard/test.wav"); */
+    source_sdcard_play_file("/sdcard/strobe.wav");
+    source_sdcard_start();
 #endif
 
 #ifdef ENABLE_BLUETOOTH
@@ -61,13 +64,14 @@ esp_err_t app_main(void) {
      */
     for (;;) {
         for (int i = 0; i < SOURCE_COUNT; i++) {
-            ESP_LOGD(TAG, "Trying buffer %d", i);
+            /* ESP_LOGD(TAG, "Trying buffer %d", i); */
             data = (uint8_t *)xRingbufferReceive(buffers[i]->data, &bytes_read, 0);
             
             if (bytes_read > 0 && data) {
                 // TODO: recode data
                 // TODO: Send data to mixer
 
+                render_samples((int16_t *)data, bytes_read);
                 vRingbufferReturnItem(buffers[i]->data, data);
             }
         }
