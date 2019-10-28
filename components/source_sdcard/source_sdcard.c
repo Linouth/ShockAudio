@@ -1,5 +1,6 @@
-#include "sdcard.h"
-#include "audio.h"
+#include "source_sdcard.h"
+#include "audio_source.h"
+#include "audio_buffer.h"
 
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
@@ -19,12 +20,13 @@ static const char* TAG = "SDCard";
 
 static xTaskHandle s_sd_task_handle = NULL;
 
+static source_status_t status = UNINITIALIZED;
+static buffer_t *s_out_buffer;
+
 FILE* fd;
 int fd_OK = 0;
 
 static int sd_init() {
-    ESP_LOGI(TAG, "Initializing SD card");
-
     fd_OK = 0;
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
@@ -57,7 +59,6 @@ static int sd_init() {
 
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
-    ESP_LOGI(TAG, "Initialization done");
     return 0;
 }
 
@@ -67,35 +68,47 @@ static void sd_close() {
 
     esp_vfs_fat_sdmmc_unmount();
     ESP_LOGI(TAG, "SDCard Unmounted");
+
+
+    vRingbufferDelete(s_out_buffer->data);
+    free(s_out_buffer);
+    ESP_LOGI(TAG, "Memory Free'd");
 }
 
+// TODO: Check filetype
+// TODO: Read in PCM data from wav file
 static void sd_task(void *arg) {
-    struct audio_state *state = (struct audio_state *)arg;
-
     uint8_t *data = calloc(SDREAD_BUF_SIZE, sizeof(char));
-    size_t bytes_read, bytes_written;
+    size_t bytes_read;
+
     ESP_LOGD(TAG, "Starting SD loop");
     for (;;) {
-        if (state->buffer_assigned[SOURCE_SDCARD] == -1) {
-            ESP_LOGD(TAG, "No buffer assigned");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        // Wait if not running
+        // TODO: This can probaly be cone with an interrupt
+        if (status != RUNNING) {
+            vTaskDelay(100/portTICK_PERIOD_MS);
             continue;
         }
+
         if (!fd_OK) {
             ESP_LOGD(TAG, "No file selected");
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             continue;
         }
+
         bytes_read = fread(data, sizeof(char), SDREAD_BUF_SIZE, fd);
         if (bytes_read < SDREAD_BUF_SIZE) {
             ESP_LOGD(TAG, "At end of file");
             fclose(fd);
             fd_OK = 0;
+            status = STOPPED;
         }
 
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
-        bytes_written = audio_write_ringbuf(data, bytes_read, SOURCE_SDCARD);
-        ESP_LOGD(TAG, "Bytes written to ringbuffer: %u", bytes_written);
+        /* bytes_written = audio_write_ringbuf(data, bytes_read, SOURCE_SDCARD); */
+        xRingbufferSend(s_out_buffer->data, data, bytes_read, portMAX_DELAY);
+        ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_read);
     }
 
     // TODO: This will never run
@@ -103,14 +116,12 @@ static void sd_task(void *arg) {
     sd_close();
 }
 
-void sd_task_start(struct audio_state *state) {
-    while (sd_init() != 0)
-        vTaskDelay(1000/portTICK_PERIOD_MS);
+int source_sdcard_play_file(char* filename) {
+    if (status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Can't play file, still uninitialized");
+        return -1;
+    }
 
-    xTaskCreate(sd_task, "SDCard", 2048, state, configMAX_PRIORITIES - 4, s_sd_task_handle);
-}
-
-int sd_open_file(char* filename) {
     if (fd_OK) {
         // Properly close fd if available
         fclose(fd);
@@ -123,4 +134,39 @@ int sd_open_file(char* filename) {
         return -1;
     fd_OK = 1;
     return 0;
+}
+
+
+void source_sdcard_init() {
+    ESP_LOGI(TAG, "Initializing SD card");
+
+    while(sd_init() != 0)
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+
+    s_out_buffer = create_buffer(SDREAD_BUF_SIZE);
+    if (!s_out_buffer->data) {
+        ESP_LOGE(TAG, "Could not allocate output buffer");
+        exit(1);
+    }
+
+    xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
+
+    status = INITIALIZED;
+    ESP_LOGI(TAG, "Initialized");
+}
+
+int source_sdcard_start() {
+    ESP_LOGI(TAG, "Starting");
+
+    if (status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Source not ready");
+        return -1;
+    }
+
+    status = RUNNING;
+    return 0;
+}
+
+buffer_t *source_sdcard_get_buffer() {
+    return s_out_buffer;
 }
