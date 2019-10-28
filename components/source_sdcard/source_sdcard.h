@@ -12,7 +12,6 @@
 int source_sdcard_play_file(char* filename);
 void source_sdcard_init();
 int source_sdcard_start();
-buffer_t *source_sdcard_get_buffer();
-source_status_t source_sdcard_get_status();
+source_state_t *source_sdcard_get_state();
 
 #endif

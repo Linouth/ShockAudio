@@ -1,6 +1,7 @@
 #ifndef AUDIO_SOURCE_C
 #define AUDIO_SOURCE_C
 
+#include "audio_buffer.h"
 #include "config.h"
 
 
@@ -15,9 +16,9 @@ typedef enum {
 
 typedef struct {
     char *name;
-    source_status_t (*get_status) (void);
-} source_t;
-
+    buffer_t buffer;
+    source_status_t status;
+} source_state_t;
 
 
 enum audio_source {
@@ -33,9 +34,7 @@ enum audio_source {
     SOURCE_COUNT
 };
 
-
-int sources_running();
-source_t sources[SOURCE_COUNT];
-
+source_state_t *create_source_state(char *name, size_t buflen);
+void clear_source_state(source_state_t *s);
 
 #endif

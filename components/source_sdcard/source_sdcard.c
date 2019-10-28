@@ -19,9 +19,7 @@ static const char* TAG = "SDCard";
 #define PIN_NUM_CS   13
 
 static xTaskHandle s_sd_task_handle = NULL;
-
-static source_status_t status = UNINITIALIZED;
-static buffer_t *s_out_buffer;
+static source_state_t *s_state;
 
 FILE* fd;
 int fd_OK = 0;
@@ -68,11 +66,6 @@ static void sd_close() {
 
     esp_vfs_fat_sdmmc_unmount();
     ESP_LOGI(TAG, "SDCard Unmounted");
-
-
-    vRingbufferDelete(s_out_buffer->data);
-    free(s_out_buffer);
-    ESP_LOGI(TAG, "Memory Free'd");
 }
 
 // TODO: Check filetype
@@ -86,7 +79,7 @@ static void sd_task(void *arg) {
 
         // Wait if not running
         // TODO: This can probaly be cone with an interrupt
-        if (status != RUNNING) {
+        if (s_state->status != RUNNING) {
             vTaskDelay(100/portTICK_PERIOD_MS);
             continue;
         }
@@ -102,12 +95,12 @@ static void sd_task(void *arg) {
             ESP_LOGD(TAG, "At end of file");
             fclose(fd);
             fd_OK = 0;
-            status = STOPPED;
+            s_state->status = STOPPED;
         }
 
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
         /* bytes_written = audio_write_ringbuf(data, bytes_read, SOURCE_SDCARD); */
-        xRingbufferSend(s_out_buffer->data, data, bytes_read, portMAX_DELAY);
+        xRingbufferSend(s_state->buffer.data, data, bytes_read, portMAX_DELAY);
         ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_read);
     }
 
@@ -117,7 +110,7 @@ static void sd_task(void *arg) {
 }
 
 int source_sdcard_play_file(char* filename) {
-    if (status == UNINITIALIZED) {
+    if (s_state->status == UNINITIALIZED) {
         ESP_LOGE(TAG, "Can't play file, still uninitialized");
         return -1;
     }
@@ -143,34 +136,30 @@ void source_sdcard_init() {
     while(sd_init() != 0)
         vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    s_out_buffer = create_buffer(SDREAD_BUF_SIZE);
-    if (!s_out_buffer->data) {
-        ESP_LOGE(TAG, "Could not allocate output buffer");
+    s_state = create_source_state("sdcard", SDREAD_BUF_SIZE);
+    if (!s_state->buffer.data) {
+        ESP_LOGE(TAG, "Could not allocate memory for source state");
         exit(1);
     }
 
     xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
 
-    status = INITIALIZED;
+    s_state->status = INITIALIZED;
     ESP_LOGI(TAG, "Initialized");
 }
 
 int source_sdcard_start() {
     ESP_LOGI(TAG, "Starting");
 
-    if (status == UNINITIALIZED) {
+    if (s_state->status == UNINITIALIZED) {
         ESP_LOGE(TAG, "Source not ready");
         return -1;
     }
 
-    status = RUNNING;
+    s_state->status = RUNNING;
     return 0;
 }
 
-buffer_t *source_sdcard_get_buffer() {
-    return s_out_buffer;
-}
-
-source_status_t source_sdcard_get_status() {
-    return status;
+source_state_t *source_sdcard_get_state() {
+    return s_state;
 }

@@ -6,7 +6,6 @@
 
 #include "audio_renderer.h"
 #include "audio_source.h"
-#include "audio_buffer.h"
 #include "source_sdcard.h"
 #include "source_tone.h"
 
@@ -35,17 +34,18 @@ esp_err_t app_main(void) {
         }
     };
 
-    buffer_t *buffers[SOURCE_COUNT];
+    source_state_t *states[SOURCE_COUNT];
     uint8_t *data;
     size_t bytes_read;
 
     bool dma_cleared = false;
+    bool running;
 
     renderer_init(&renderer_config);
 
 #ifdef ENABLE_SDCARD
     source_sdcard_init();
-    buffers[SOURCE_SDCARD] = source_sdcard_get_buffer();
+    states[SOURCE_SDCARD] = source_sdcard_get_state();
     /* source_sdcard_play_file("/sdcard/test.wav"); */
     source_sdcard_play_file("/sdcard/strobe.wav");
     source_sdcard_start();
@@ -69,22 +69,28 @@ esp_err_t app_main(void) {
      * reformat it and send it to the mixer
      */
     for (;;) {
-        for (int i = 0; i < SOURCE_COUNT; i++) {
-            data = (uint8_t *)xRingbufferReceive(buffers[i]->data, &bytes_read, 0);
-            
-            if (bytes_read > 0 && data) {
-                // TODO: recode data
-                // TODO: Send data to mixer
+        running = false;
 
-                render_samples((int16_t *)data, bytes_read);
-                vRingbufferReturnItem(buffers[i]->data, data);
-                dma_cleared = false;
+        for (int i = 0; i < SOURCE_COUNT; i++) {
+            if (states[i]->status == RUNNING) {
+                running = true;
+
+                data = (uint8_t *)xRingbufferReceive(states[i]->buffer.data, &bytes_read, 0);
+                
+                if (bytes_read > 0 && data) {
+                    // TODO: recode data
+                    // TODO: Send data to mixer
+
+                    render_samples((int16_t *)data, bytes_read);
+                    vRingbufferReturnItem(states[i]->buffer.data, data);
+                    dma_cleared = false;
+                }
             }
         }
 
         // TODO: This is a fucking mess... Trying to build objects and OOP in C...
         /* printf("%d\n", source_sdcard_get_status()); */
-        if (!dma_cleared && source_sdcard_get_status() != RUNNING) {
+        if (!dma_cleared && !running) {
             renderer_clear_dma();
             dma_cleared = true;
         }
