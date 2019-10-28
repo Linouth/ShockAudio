@@ -8,6 +8,7 @@
 #include "audio_source.h"
 #include "audio_buffer.h"
 #include "source_sdcard.h"
+#include "source_tone.h"
 
 #include "config.h"
 
@@ -54,8 +55,11 @@ esp_err_t app_main(void) {
 #endif
 
 #ifdef ENABLE_TONE
-    tone_task_start(&state);
-    /* buffers[SOURCE_TONE] = tone_get_buffer(); */
+    source_tone_init();
+    buffers[SOURCE_TONE] = source_tone_get_buffer();
+    source_tone_start();
+    vTaskDelay(1000/portTICK_PERIOD_MS);
+    source_tone_play(3000, 44100, 16, 2, 1000);
 #endif
 
     /**

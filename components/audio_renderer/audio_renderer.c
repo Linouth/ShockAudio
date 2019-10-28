@@ -67,3 +67,8 @@ void renderer_set_sample_rate(uint32_t sample_rate) {
     ESP_LOGI(TAG, "Setting sample rate to %d", sample_rate);
     i2s_set_sample_rates(i2s_num, sample_rate);
 }
+
+void renderer_clear_dma() {
+    ESP_LOGI(TAG, "Clearing DMA buffer");
+    i2s_zero_dma_buffer(i2s_num);
+}

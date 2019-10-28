@@ -23,5 +23,6 @@ void renderer_destroy();
 
 int render_samples(int16_t *buf, size_t buf_len);
 void renderer_set_sample_rate(uint32_t sample_rate);
+void renderer_clear_dma();
 
 #endif
