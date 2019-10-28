@@ -12,8 +12,7 @@ Basic:
     - I mean, it works but its pretty messy right now.
 - [ ] Add support for multiple sample rates (stretch or shrink signal)
 - [ ] Add support for multiple bit per sample (pad with zeros or remove data)
-- [ ] Add basic mixing of channels **(Still needs testing with another source)**
-    - Yeah... This does not really work yet. 
+- [ ] Add basic mixing of channels
 - [ ] Fix endianness
 
 Advanced:
@@ -37,6 +36,7 @@ Straight forward tasks:
 - [x] Create general 'Audio Source' component with structs/enums for state etc
 - [x] Move SD audio source to its own component
     - ~~Done, still needs testing though.~~
+- [ ] Add functions/macros to audio_source component to init, start, pause, stop all sources
 - [ ] Write function to resample audio data
 - [ ] Write function to transform bits per sample
 - [ ] Create Mixer component
