@@ -39,6 +39,8 @@ esp_err_t app_main(void) {
     uint8_t *data;
     size_t bytes_read;
 
+    bool dma_cleared = false;
+
     renderer_init(&renderer_config);
 
 #ifdef ENABLE_SDCARD
@@ -68,7 +70,6 @@ esp_err_t app_main(void) {
      */
     for (;;) {
         for (int i = 0; i < SOURCE_COUNT; i++) {
-            /* ESP_LOGD(TAG, "Trying buffer %d", i); */
             data = (uint8_t *)xRingbufferReceive(buffers[i]->data, &bytes_read, 0);
             
             if (bytes_read > 0 && data) {
@@ -77,8 +78,17 @@ esp_err_t app_main(void) {
 
                 render_samples((int16_t *)data, bytes_read);
                 vRingbufferReturnItem(buffers[i]->data, data);
+                dma_cleared = false;
             }
         }
+
+        // TODO: This is a fucking mess... Trying to build objects and OOP in C...
+        /* printf("%d\n", source_sdcard_get_status()); */
+        if (!dma_cleared && source_sdcard_get_status() != RUNNING) {
+            renderer_clear_dma();
+            dma_cleared = true;
+        }
+
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 

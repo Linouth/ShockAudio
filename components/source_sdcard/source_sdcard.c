@@ -170,3 +170,7 @@ int source_sdcard_start() {
 buffer_t *source_sdcard_get_buffer() {
     return s_out_buffer;
 }
+
+source_status_t source_sdcard_get_status() {
+    return status;
+}

@@ -75,25 +75,16 @@ static void tone_task(void *arg) {
             printf("%lf\n", tone->duration);
 
             if (tone->duration <= 0) {
-                ESP_LOGD(TAG, "Tone finished, freeing");
+                ESP_LOGD(TAG, "Tone finished");
                 free(tone);
                 tone = NULL;
+                status = STOPPED;
             }
         }
 
         if (bytes_to_write > 0) {
             xRingbufferSend(s_out_buffer->data, data, bytes_to_write, portMAX_DELAY);
             ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_to_write);
-
-            // TODO: Temp:
-            if (!tone) {
-                // Tone finished, buffer
-                ESP_LOGD(TAG, "Tone finished, writing zeros?");
-                vTaskDelay(100/portTICK_PERIOD_MS);
-                /* memset(data, 0, TONE_BUF_SIZE); */
-                /* xRingbufferSend(s_out_buffer->data, data, sizeof(data), portMAX_DELAY); */
-                renderer_clear_dma();
-            }
         } else {
             vTaskDelay(100/portTICK_PERIOD_MS);
         }
@@ -138,8 +129,17 @@ buffer_t *source_tone_get_buffer() {
     return s_out_buffer;
 }
 
+source_status_t source_tone_get_status() {
+    return status;
+}
+
 // Duration in ms
 void source_tone_play(uint16_t freq, uint32_t samplerate, uint8_t bits_per_sample, uint8_t channels, double duration) {
+    if (status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Source not yet initialized");
+        return;
+    }
+
     tone_t *tone = calloc(1, sizeof(tone_t));
     tone->freq = freq;
     tone->sample_rate = samplerate;
