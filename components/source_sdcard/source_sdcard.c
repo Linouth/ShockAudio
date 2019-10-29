@@ -79,7 +79,7 @@ static void sd_task(void *arg) {
 
         // Wait if not running
         // TODO: This can probaly be cone with an interrupt
-        if (s_state->status != RUNNING) {
+        if (s_state->status != PLAYING) {
             vTaskDelay(100/portTICK_PERIOD_MS);
             continue;
         }
@@ -129,37 +129,49 @@ int source_sdcard_play_file(char* filename) {
     return 0;
 }
 
+bool source_sdcard_play() {
+    ESP_LOGI(TAG, "Playing");
 
-void source_sdcard_init() {
-    ESP_LOGI(TAG, "Initializing SD card");
+    if (s_state->status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Source not ready");
+        return false;
+    }
+
+    s_state->status = PLAYING;
+    return true;
+}
+
+bool source_sdcard_pause() {
+    ESP_LOGI(TAG, "Pausing");
+
+    if (s_state->status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Source not ready");
+        return false;
+    }
+
+    s_state->status = PAUSED;
+    return true;
+}
+
+source_state_t *source_sdcard_init() {
+    ESP_LOGI(TAG, "Initializing");
 
     while(sd_init() != 0)
         vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    s_state = create_source_state("sdcard", SDREAD_BUF_SIZE);
+    s_state = create_source_state(SOURCE_SDCARD, SDREAD_BUF_SIZE);
     if (!s_state->buffer.data) {
         ESP_LOGE(TAG, "Could not allocate memory for source state");
         exit(1);
     }
 
+    s_state->play = &source_sdcard_play;
+    s_state->pause = &source_sdcard_pause;
+
     xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
 
     s_state->status = INITIALIZED;
     ESP_LOGI(TAG, "Initialized");
-}
 
-int source_sdcard_start() {
-    ESP_LOGI(TAG, "Starting");
-
-    if (s_state->status == UNINITIALIZED) {
-        ESP_LOGE(TAG, "Source not ready");
-        return -1;
-    }
-
-    s_state->status = RUNNING;
-    return 0;
-}
-
-source_state_t *source_sdcard_get_state() {
     return s_state;
 }

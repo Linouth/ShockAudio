@@ -1,9 +1,3 @@
-/* #include "sdcard.h" */
-/* #include "bluetooth.h" */
-/* #include "tone.h" */
-/* #include "audio.h" */
-/* #include "buffer.h" */
-
 #include "audio_renderer.h"
 #include "audio_source.h"
 #include "source_sdcard.h"
@@ -34,7 +28,8 @@ esp_err_t app_main(void) {
         }
     };
 
-    source_state_t *states[SOURCE_COUNT];
+    source_state_t *states[SOURCE_COUNT];  // Change to linked list? 
+    int states_len = 0;  // TODO: Think of something better
     uint8_t *data;
     size_t bytes_read;
 
@@ -44,25 +39,28 @@ esp_err_t app_main(void) {
     renderer_init(&renderer_config);
 
 #ifdef ENABLE_SDCARD
-    source_sdcard_init();
-    states[SOURCE_SDCARD] = source_sdcard_get_state();
-    /* source_sdcard_play_file("/sdcard/test.wav"); */
+    states[states_len] = source_sdcard_init();
+    states_len++;
     source_sdcard_play_file("/sdcard/strobe.wav");
-    source_sdcard_start();
+    /* source_sdcard_start(); */
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-    bt_task_start(&state);
-    /* buffers[SOURCE_BLUETOOTH] = bt_get_buffer(); */
+    states[states_len] = source_bluetooth_init();
+    states_len++;
 #endif
 
 #ifdef ENABLE_TONE
-    source_tone_init();
-    buffers[SOURCE_TONE] = source_tone_get_buffer();
-    source_tone_start();
+    states[states_len] = source_tone_init();
+    states_len++;
+
     vTaskDelay(1000/portTICK_PERIOD_MS);
-    source_tone_play(3000, 44100, 16, 2, 1000);
+    source_tone_play_tone(3000, 44100, 16, 2, 1000);
 #endif
+
+    for (int i = 0; i < states_len; i++) {
+        states[i]->play();
+    }
 
     /**
      * Main audio loop. Retrieve data from audio source buffers,
@@ -71,8 +69,8 @@ esp_err_t app_main(void) {
     for (;;) {
         running = false;
 
-        for (int i = 0; i < SOURCE_COUNT; i++) {
-            if (states[i]->status == RUNNING) {
+        for (int i = 0; i < states_len; i++) {
+            if (states[i]->status == PLAYING) {
                 running = true;
 
                 data = (uint8_t *)xRingbufferReceive(states[i]->buffer.data, &bytes_read, 0);
@@ -88,8 +86,6 @@ esp_err_t app_main(void) {
             }
         }
 
-        // TODO: This is a fucking mess... Trying to build objects and OOP in C...
-        /* printf("%d\n", source_sdcard_get_status()); */
         if (!dma_cleared && !running) {
             renderer_clear_dma();
             dma_cleared = true;

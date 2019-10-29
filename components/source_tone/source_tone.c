@@ -17,8 +17,7 @@ static const char* TAG = "Tone";
 static xTaskHandle s_tone_task_handle = NULL;
 static xQueueHandle s_tone_queue = NULL;
 
-static source_status_t status = UNINITIALIZED;
-static buffer_t *s_out_buffer;
+static source_state_t *s_state;
 
 
 static void tone_task(void *arg) {
@@ -33,7 +32,7 @@ static void tone_task(void *arg) {
     for (;;) {
         // Wait if not running
         // TODO: This can probaly be cone with an interrupt
-        if (status != RUNNING) {
+        if (s_state->status != PLAYING) {
             vTaskDelay(100/portTICK_PERIOD_MS);
             continue;
         }
@@ -78,12 +77,12 @@ static void tone_task(void *arg) {
                 ESP_LOGD(TAG, "Tone finished");
                 free(tone);
                 tone = NULL;
-                status = STOPPED;
+                s_state->status = STOPPED;
             }
         }
 
         if (bytes_to_write > 0) {
-            xRingbufferSend(s_out_buffer->data, data, bytes_to_write, portMAX_DELAY);
+            xRingbufferSend(s_state->buffer.data, data, bytes_to_write, portMAX_DELAY);
             ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_to_write);
         } else {
             vTaskDelay(100/portTICK_PERIOD_MS);
@@ -94,48 +93,9 @@ static void tone_task(void *arg) {
     free(data);
 }
 
-void source_tone_init() {
-    ESP_LOGI(TAG, "Initializing");
-
-    s_out_buffer = create_buffer(TONE_BUF_SIZE);
-    if (!s_out_buffer->data) {
-        ESP_LOGE(TAG, "Could not allocate output buffer");
-        exit(1);
-    }
-
-    xTaskCreate(tone_task, "Tone", 2048, NULL, configMAX_PRIORITIES - 4, s_tone_task_handle);
-
-    s_tone_queue = xQueueCreate(10, sizeof(tone_t *));
-    if (!s_tone_queue)
-        ESP_LOGE(TAG, "Could not create queue");
-
-    status = INITIALIZED;
-    ESP_LOGI(TAG, "Initialized");
-}
-
-int source_tone_start() {
-    ESP_LOGI(TAG, "Starting");
-
-    if (status == UNINITIALIZED) {
-        ESP_LOGE(TAG, "Source not ready");
-        return -1;
-    }
-
-    status = RUNNING;
-    return 0;
-}
-
-buffer_t *source_tone_get_buffer() {
-    return s_out_buffer;
-}
-
-source_status_t source_tone_get_status() {
-    return status;
-}
-
 // Duration in ms
-void source_tone_play(uint16_t freq, uint32_t samplerate, uint8_t bits_per_sample, uint8_t channels, double duration) {
-    if (status == UNINITIALIZED) {
+void source_tone_play_tone(uint16_t freq, uint32_t samplerate, uint8_t bits_per_sample, uint8_t channels, double duration) {
+    if (s_state->status == UNINITIALIZED) {
         ESP_LOGE(TAG, "Source not yet initialized");
         return;
     }
@@ -151,4 +111,52 @@ void source_tone_play(uint16_t freq, uint32_t samplerate, uint8_t bits_per_sampl
     if (xQueueSendToBack(s_tone_queue, &tone, 10) != pdPASS) {
         ESP_LOGE(TAG, "Queue is full!");
     }
+}
+
+bool source_tone_play() {
+    ESP_LOGI(TAG, "Playing");
+
+    if (s_state->status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Source not ready");
+        return false;
+    }
+
+    s_state->status = PLAYING;
+    return true;
+}
+
+bool source_tone_pause() {
+    ESP_LOGI(TAG, "Pausing");
+
+    if (s_state->status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Source not ready");
+        return false;
+    }
+
+    s_state->status = PAUSED;
+    return true;
+}
+
+source_state_t *source_tone_init() {
+    ESP_LOGI(TAG, "Initializing");
+
+    s_state = create_source_state(SOURCE_TONE, TONE_BUF_SIZE);
+    if (!s_state->buffer.data) {
+        ESP_LOGE(TAG, "Could not allocate memory for source state");
+        exit(1);
+    }
+
+    s_state->play = &source_tone_play;
+    s_state->pause = &source_tone_pause;
+
+    xTaskCreate(tone_task, "Tone", 2048, NULL, configMAX_PRIORITIES - 4, s_tone_task_handle);
+
+    s_tone_queue = xQueueCreate(10, sizeof(tone_t *));
+    if (!s_tone_queue)
+        ESP_LOGE(TAG, "Could not create queue");
+
+    s_state->status = INITIALIZED;
+    ESP_LOGI(TAG, "Initialized");
+
+    return s_state;
 }

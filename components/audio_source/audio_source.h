@@ -2,39 +2,54 @@
 #define AUDIO_SOURCE_C
 
 #include "audio_buffer.h"
-#include "config.h"
 
 
+/**
+ * Status for sources
+ */
 typedef enum {
     UNINITIALIZED,
     INITIALIZED,
     STOPPED,
     PAUSED,
-    RUNNING
+    PLAYING
 } source_status_t ;
 
+/**
+ * Source identifiers
+ */
+typedef enum {
+    SOURCE_SDCARD = 0,
+    SOURCE_BLUETOOTH,
+    SOURCE_TONE,
+    SOURCE_COUNT
+} audio_source_t ;
 
-typedef struct {
-    char *name;
+
+/**
+ * A structure to keep track of a sources state and its buffer
+ */
+typedef struct source_state {
+    audio_source_t source;
     buffer_t buffer;
     source_status_t status;
+
+    bool (*play)();
+    bool (*pause)();
 } source_state_t;
 
+/**
+ * @brief   Allocate and initialize a new source_state struct
+ * @param   source: audio source
+ *          buflen: size of data ringbuffer
+ * @return  NULL: failed to allocate memory
+ *          source_state_t: success
+ */
+source_state_t *create_source_state(audio_source_t source, size_t buflen);
 
-enum audio_source {
-/* #ifdef ENABLE_SDCARD */
-    SOURCE_SDCARD = 0,
-/* #endif */
-#ifdef ENABLE_BLUETOOTH
-    SOURCE_BLUETOOTH,
-#endif
-#ifdef ENABLE_TONE
-    SOURCE_TONE,
-#endif
-    SOURCE_COUNT
-};
-
-source_state_t *create_source_state(char *name, size_t buflen);
+/**
+ * @brief   Free allocated memory of source_state struct
+ */
 void clear_source_state(source_state_t *s);
 
 #endif

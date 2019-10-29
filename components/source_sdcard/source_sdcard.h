@@ -9,9 +9,19 @@
 
 #define SDREAD_BUF_SIZE 2048*4
 
+/**
+ * Play file from sdcard
+ * Opens fd of file for the task to use
+ * @param   filename: file to play
+ */
 int source_sdcard_play_file(char* filename);
-void source_sdcard_init();
-int source_sdcard_start();
-source_state_t *source_sdcard_get_state();
+
+/**
+ * Initialize sdcard source
+ * Initializes sd hardware, and allocates memory for the state structure.
+ * Assigns play and pause functions to the structure. Also creates task.
+ * @return  State structure
+ */
+source_state_t *source_sdcard_init();
 
 #endif

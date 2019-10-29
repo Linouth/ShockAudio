@@ -36,7 +36,8 @@ Straight forward tasks:
 - [x] Create general 'Audio Source' component with structs/enums for state etc
 - [x] Move SD audio source to its own component
     - ~~Done, still needs testing though.~~
-- [ ] Add functions/macros to audio_source component to init, start, pause, stop all sources
+- [x] Add functions/macros to audio_source component to init, start, pause, stop all sources
+    - Not all, but play and pause are state elements now.
 - [ ] Write function to resample audio data
 - [ ] Write function to transform bits per sample
 - [ ] Create Mixer component
