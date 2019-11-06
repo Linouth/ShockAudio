@@ -44,8 +44,8 @@ esp_err_t app_main(void) {
 #ifdef ENABLE_SDCARD
     states[states_len] = source_sdcard_init();
     states_len++;
-    /* source_sdcard_play_file("/sdcard/strobe.wav"); */
-    source_sdcard_play_file("/sdcard/test.wav");
+    source_sdcard_play_file("/sdcard/strobe.wav");
+    /* source_sdcard_play_file("/sdcard/test.wav"); */
 #endif
 
 #ifdef ENABLE_BLUETOOTH
@@ -88,7 +88,6 @@ esp_err_t app_main(void) {
                     // Upsample everything (if SR is equal, data is being copied)
                     out = upsample(data, bytes_read, &upsampled_len, states[i]->buffer.format, highest_sample_rate);
                     // TODO: Change bit depth
-
                     // TODO: Send data to mixer
 
                     render_samples((int16_t *)out, upsampled_len);
@@ -99,7 +98,7 @@ esp_err_t app_main(void) {
             }
         }
 
-        if (highest_sample_rate != last_highest_sample_rate) {
+        if (highest_sample_rate != last_highest_sample_rate && highest_sample_rate > 0) {
             renderer_set_sample_rate(highest_sample_rate);
             last_highest_sample_rate = highest_sample_rate;
         }

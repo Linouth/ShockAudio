@@ -23,6 +23,7 @@ static source_state_t *s_state;
 
 FILE* fd;
 int fd_OK = 0;
+bool new_file = false;
 
 static int sd_init() {
     fd_OK = 0;
@@ -68,6 +69,18 @@ static void sd_close() {
     ESP_LOGI(TAG, "SDCard Unmounted");
 }
 
+static void read_wav_header(uint8_t *data) {
+    int channels = (uint16_t)(data[23] << 8 | data[22]);
+    uint32_t sample_rate = (uint32_t)(data[27] << 24 | data[26] << 16 | data[25] << 8 | data[24]);
+    int bits_per_sample = (uint16_t)(data[35] << 8 | data[34]);
+
+    ESP_LOGI(TAG, "New file: sample_rate %d, channels %d, bitsPerSample %d", sample_rate, channels, bits_per_sample);
+
+    s_state->buffer.format.bits_per_sample = bits_per_sample;
+    s_state->buffer.format.channels = channels;
+    s_state->buffer.format.sample_rate = sample_rate;
+}
+
 // TODO: Check filetype
 // TODO: Read in PCM data from wav file
 static void sd_task(void *arg) {
@@ -90,6 +103,11 @@ static void sd_task(void *arg) {
             continue;
         }
 
+        if (new_file) {
+            fread(data, sizeof(char), 44, fd);
+            read_wav_header(data);
+            new_file = false;
+        }
         bytes_read = fread(data, sizeof(char), SDREAD_BUF_SIZE, fd);
         if (bytes_read < SDREAD_BUF_SIZE) {
             ESP_LOGD(TAG, "At end of file");
@@ -126,6 +144,7 @@ int source_sdcard_play_file(char* filename) {
     if (!fd)
         return -1;
     fd_OK = 1;
+    new_file = true;
     return 0;
 }
 
@@ -169,7 +188,7 @@ source_state_t *source_sdcard_init() {
     s_state->pause = &source_sdcard_pause;
 
     // TODO: Do this in task loop for every file
-    s_state->buffer.format.sample_rate = 8000;
+    s_state->buffer.format.sample_rate = 44100;
     s_state->buffer.format.bits_per_sample = 16;
     s_state->buffer.format.channels = 2;
 
