@@ -168,6 +168,12 @@ source_state_t *source_sdcard_init() {
     s_state->play = &source_sdcard_play;
     s_state->pause = &source_sdcard_pause;
 
+    // TODO: Do this in task loop for every file
+    s_state->buffer.format.sample_rate = 8000;
+    s_state->buffer.format.bits_per_sample = 16;
+    s_state->buffer.format.channels = 2;
+
+
     xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
 
     s_state->status = INITIALIZED;

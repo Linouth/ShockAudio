@@ -38,7 +38,9 @@ Straight forward tasks:
     - ~~Done, still needs testing though.~~
 - [x] Add functions/macros to audio_source component to init, start, pause, stop all sources
     - Not all, but play and pause are state elements now.
-- [ ] Write function to resample audio data
+- [x] Write function to resample audio data
+    - Only upsampling, since downsampling is probably never needed.
+    - Can still use some work, especially when the samplerates are not multiples of eachother.
 - [ ] Write function to transform bits per sample
 - [ ] Create Mixer component
 - [ ] Add states to audio sources (Running, Stopped, Uninitialized, etc.)

@@ -14,6 +14,6 @@ typedef struct {
 
 
 // TODO: Add functions to resample and change bit depth
-
+uint8_t *upsample(uint8_t *data, size_t data_len, size_t *out_len, pcm_format pcm, int to_rate);
 
 #endif

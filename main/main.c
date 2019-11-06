@@ -2,6 +2,7 @@
 #include "audio_source.h"
 #include "source_sdcard.h"
 #include "source_tone.h"
+#include "pcm.h"
 
 #include "config.h"
 
@@ -12,7 +13,7 @@
 #include "esp_log.h"
 #include "driver/i2s.h"
 
-const char* TAG = "Main";
+static const char* TAG = "Main";
 
 esp_err_t app_main(void) {
 
@@ -30,8 +31,10 @@ esp_err_t app_main(void) {
 
     source_state_t *states[SOURCE_COUNT];  // Change to linked list? 
     int states_len = 0;  // TODO: Think of something better
-    uint8_t *data;
-    size_t bytes_read;
+
+    uint8_t *data, *out;
+    size_t bytes_read, upsampled_len;
+    int highest_sample_rate, last_highest_sample_rate = 0;
 
     bool dma_cleared = false;
     bool running;
@@ -41,8 +44,8 @@ esp_err_t app_main(void) {
 #ifdef ENABLE_SDCARD
     states[states_len] = source_sdcard_init();
     states_len++;
-    source_sdcard_play_file("/sdcard/strobe.wav");
-    /* source_sdcard_start(); */
+    /* source_sdcard_play_file("/sdcard/strobe.wav"); */
+    source_sdcard_play_file("/sdcard/test.wav");
 #endif
 
 #ifdef ENABLE_BLUETOOTH
@@ -68,22 +71,37 @@ esp_err_t app_main(void) {
      */
     for (;;) {
         running = false;
+        highest_sample_rate = 0;
 
         for (int i = 0; i < states_len; i++) {
+
             if (states[i]->status == PLAYING) {
                 running = true;
+
+                if (states[i]->buffer.format.sample_rate > highest_sample_rate) {
+                    highest_sample_rate = states[i]->buffer.format.sample_rate;
+                }
 
                 data = (uint8_t *)xRingbufferReceive(states[i]->buffer.data, &bytes_read, 0);
                 
                 if (bytes_read > 0 && data) {
-                    // TODO: recode data
+                    // Upsample everything (if SR is equal, data is being copied)
+                    out = upsample(data, bytes_read, &upsampled_len, states[i]->buffer.format, highest_sample_rate);
+                    // TODO: Change bit depth
+
                     // TODO: Send data to mixer
 
-                    render_samples((int16_t *)data, bytes_read);
+                    render_samples((int16_t *)out, upsampled_len);
                     vRingbufferReturnItem(states[i]->buffer.data, data);
+                    free(out);
                     dma_cleared = false;
                 }
             }
+        }
+
+        if (highest_sample_rate != last_highest_sample_rate) {
+            renderer_set_sample_rate(highest_sample_rate);
+            last_highest_sample_rate = highest_sample_rate;
         }
 
         if (!dma_cleared && !running) {
