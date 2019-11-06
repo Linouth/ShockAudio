@@ -2,6 +2,7 @@
 #include "audio_source.h"
 #include "source_sdcard.h"
 #include "source_tone.h"
+#include "source_bluetooth.h"
 #include "pcm.h"
 
 #include "config.h"
@@ -49,7 +50,7 @@ esp_err_t app_main(void) {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-    states[states_len] = source_bluetooth_init();
+    states[states_len] = source_bt_init();
     states_len++;
 #endif
 
@@ -90,7 +91,8 @@ esp_err_t app_main(void) {
                     // TODO: Change bit depth
                     // TODO: Send data to mixer
 
-                    render_samples((int16_t *)out, upsampled_len);
+                    /* render_samples((int16_t *)out, upsampled_len); */
+                    render_samples((int16_t *)data, bytes_read);
                     vRingbufferReturnItem(states[i]->buffer.data, data);
                     free(out);
                     dma_cleared = false;

@@ -16,11 +16,13 @@ static void i2s_init(renderer_config_t *config) {
         .sample_rate = config->sample_rate,
         .bits_per_sample = config->bits_per_sample,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
-        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB,
+        /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB, */
+        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB,
         .dma_buf_count = DMA_BUF_COUNT,
         .dma_buf_len = DMA_BUF_LEN,
         .use_apll = false,  // Maybe
-        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1
+        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+        .tx_desc_auto_clear = true
     };
 
     ESP_LOGI(TAG, "Initializing I2S");
