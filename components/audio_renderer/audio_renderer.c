@@ -58,7 +58,7 @@ int render_samples(int16_t *buf, size_t buf_len) {
     ESP_LOGD(TAG, "Writing %u bytes to DMA buffer", buf_len);
     // TODO: Remove this
     for (int i = 0; i < buf_len/2; i++) { // Hakcy way to reduce volume
-        buf[i] >>= 4;
+        buf[i] >>= 0;
     }
     i2s_write(i2s_num, buf, buf_len, &bytes_written, portMAX_DELAY);
 

@@ -2,7 +2,7 @@
 #include "audio_source.h"
 #include "source_sdcard.h"
 #include "source_tone.h"
-/* #include "source_bluetooth.h" */
+#include "source_bluetooth.h"
 #include "pcm.h"
 
 #include "config.h"
@@ -50,8 +50,8 @@ esp_err_t app_main(void) {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-    /* states[states_len] = source_bt_init(); */
-    /* states_len++; */
+    states[states_len] = source_bt_init();
+    states_len++;
 #endif
 
 #ifdef ENABLE_TONE
@@ -62,9 +62,11 @@ esp_err_t app_main(void) {
     source_tone_play_tone(3000, 44100, 16, 2, 1000);
 #endif
 
+    /*
     for (int i = 0; i < states_len; i++) {
         states[i]->play();
     }
+    */
 
     /**
      * Main audio loop. Retrieve data from audio source buffers,
@@ -87,14 +89,14 @@ esp_err_t app_main(void) {
                 
                 if (bytes_read > 0 && data) {
                     // Upsample everything (if SR is equal, data is being copied)
-                    out = upsample(data, bytes_read, &upsampled_len, states[i]->buffer.format, highest_sample_rate);
+                    /* out = upsample(data, bytes_read, &upsampled_len, states[i]->buffer.format, highest_sample_rate); */
                     // TODO: Change bit depth
                     // TODO: Send data to mixer
 
                     /* render_samples((int16_t *)out, upsampled_len); */
                     render_samples((int16_t *)data, bytes_read);
                     vRingbufferReturnItem(states[i]->buffer.data, data);
-                    free(out);
+                    /* free(out); */
                     dma_cleared = false;
                 }
             }
@@ -110,7 +112,8 @@ esp_err_t app_main(void) {
             dma_cleared = true;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(20));
+        if (!running)
+            vTaskDelay(pdMS_TO_TICKS(50));
     }
 
     return 0;

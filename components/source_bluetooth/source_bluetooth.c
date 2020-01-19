@@ -14,6 +14,7 @@
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
 #include "esp_a2dp_api.h"
+#include "esp_avrc_api.h"
 #include "esp_gap_bt_api.h"
 
 typedef void (* cb_t)(uint16_t event, void *param);
@@ -25,13 +26,26 @@ typedef struct {
     void     *param;
 } msg_t;
 
-#define BT_APP_SIG_WORK_DISPATCH          (0x01)
+
+enum {
+    BT_SIG_WORK_DISPATCH = 0
+};
+
+enum {
+    BT_EVT_STACK_UP = 0,
+};
+
+enum {
+    RC_CT_TL_GET_CAPS = 0,
+};
 
 
 static const char* TAG = "Bluetooth";
 
 static const char *s_a2d_conn_state_str[] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
 static const char *s_a2d_audio_state_str[] = {"Suspended", "Stopped", "Started"};
+
+static esp_avrc_rn_evt_cap_mask_t s_avrc_peer_rn_cap;
 
 static xQueueHandle s_bt_task_queue = NULL;
 static xTaskHandle s_bt_task_handle = NULL;
@@ -50,13 +64,14 @@ bool send_msg(msg_t *msg) {
     return true;
 }
 
+
 bool work_dispatch(cb_t cb, uint16_t event, void *params, int param_len) {
     ESP_LOGD(TAG, "%s event 0x%x, param len %d", __func__, event, param_len);
 
     msg_t msg;
     memset(&msg, 0, sizeof(msg_t));
 
-    msg.signal = BT_APP_SIG_WORK_DISPATCH;
+    msg.signal = BT_SIG_WORK_DISPATCH;
     msg.event = event;
     msg.cb = cb;
     
@@ -74,7 +89,7 @@ bool work_dispatch(cb_t cb, uint16_t event, void *params, int param_len) {
 
     return false;
 }
-    
+
 
 void bt_init() {
     ESP_LOGI(TAG, "Initializing Bluetooth");
@@ -102,6 +117,7 @@ void bt_init() {
     esp_bt_gap_set_pin(pin_type, 4, pin_code);
 }
 
+
 void bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param) {
     switch (event) {
     case ESP_BT_GAP_AUTH_CMPL_EVT:
@@ -120,7 +136,8 @@ void bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param) {
     }
 }
 
-void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
+
+void bt_hdl_a2d_evt(uint16_t event, void *param) {
     esp_a2d_cb_param_t *a2d = (esp_a2d_cb_param_t *) param;
     switch (event) {
         case ESP_A2D_CONNECTION_STATE_EVT: {
@@ -149,7 +166,7 @@ void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
                     s_state->status = PAUSED;
                     break;
                 default:
-                    ESP_LOGW(TAG, "Unimplemented Audio State EVT");
+                    ESP_LOGE(TAG, "Unimplemented Audio State EVT");
                     break;
             }
             break;
@@ -188,10 +205,26 @@ void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
                 break;
             }
         default:
-            ESP_LOGW(TAG, "Unimplemented A2DP event: %d", event);
+            ESP_LOGW(TAG, "%s unhandled event %d", __func__, event);
             break;
     }
 }
+
+
+void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
+    switch(event) {
+        case ESP_A2D_CONNECTION_STATE_EVT:
+        case ESP_A2D_AUDIO_STATE_EVT:
+        case ESP_A2D_AUDIO_CFG_EVT:
+            work_dispatch(bt_hdl_a2d_evt, event, param, sizeof(esp_a2d_cb_param_t));
+            break;
+        default:
+            ESP_LOGE(TAG, "Unknown A2DP event %d", event);
+            break;
+    }
+
+}
+
 
 void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
     ESP_LOGD(TAG, "Data received: %d bytes", len);
@@ -199,27 +232,191 @@ void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
     xRingbufferSend(s_state->buffer.data, data, len, portMAX_DELAY);
 }
 
-// TODO: Also hacky...
-void bt_stack_up() {
-    char *dev_name = "ShockSpeaker";
-    esp_bt_dev_set_device_name(dev_name);
-    esp_bt_gap_register_callback(bt_gap_cb);
+void av_hdl_avrc_ct_evt(uint16_t event, void *param) {
+    ESP_LOGD(TAG, "%s, evt %d", __func__, event);
+    esp_avrc_ct_cb_param_t *rc = (esp_avrc_ct_cb_param_t *) (param);
 
-    esp_a2d_register_callback(bt_a2d_cb);
-    esp_a2d_sink_register_data_callback(bt_a2d_data_cb);
-    esp_a2d_sink_init();
+    switch(event) {
+        case ESP_AVRC_CT_METADATA_RSP_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC Metadata RSP: attr id 0x%x, %s", rc->meta_rsp.attr_id, rc->meta_rsp.attr_text);
+            free(rc->meta_rsp.attr_text);
+            break;
+        }
+        case ESP_AVRC_CT_CONNECTION_STATE_EVT:
+        {
+            uint8_t *bda = rc->conn_stat.remote_bda;
+            ESP_LOGI(TAG, "AVRC ct conn_state evt: connected[%d], addr[%02x:%02x:%02x:%02x:%02x:%02x]", rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
 
-    esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
-
-    // TODO: Add AVRCP controller
+            if (rc->conn_stat.connected) {
+                esp_avrc_ct_send_get_rn_capabilities_cmd(RC_CT_TL_GET_CAPS);
+            } else {
+                // Clear capability bits
+                s_avrc_peer_rn_cap.bits = 0;
+            }
+            break;
+        }
+        case ESP_AVRC_CT_PASSTHROUGH_RSP_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC passthrough rsp: key_code 0x%x, key_state %d", rc->psth_rsp.key_code, rc->psth_rsp.key_state);
+            break;
+        }
+        case ESP_AVRC_CT_CHANGE_NOTIFY_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC event notification: %d", rc->change_ntf.event_id);
+            /* bt_av_notify_evt_handler(rc->change_ntf.event_id, &rc->change_ntf.event_parameter); */
+            break;
+        }
+        case ESP_AVRC_CT_REMOTE_FEATURES_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC remote features %x, TG features %x", rc->rmt_feats.feat_mask, rc->rmt_feats.tg_feat_flag);
+            break;
+        }
+        case ESP_AVRC_CT_GET_RN_CAPABILITIES_RSP_EVT:
+        {
+            ESP_LOGI(TAG, "remote rn_cap: count %d, bitmask 0x%x", rc->get_rn_caps_rsp.cap_count,
+                     rc->get_rn_caps_rsp.evt_set.bits);
+            s_avrc_peer_rn_cap.bits = rc->get_rn_caps_rsp.evt_set.bits;
+            /* bt_av_new_track(); */
+            /* bt_av_playback_changed(); */
+            /* bt_av_play_pos_changed(); */
+            break;
+        }
+        default:
+            ESP_LOGE(TAG, "%s unhandled event %d", __func__, event);
+            break;
+    }
 }
 
+
+void av_hdl_avrc_tg_evt(uint16_t event, void *param) {
+    esp_avrc_tg_cb_param_t *rc = (esp_avrc_tg_cb_param_t *) param;
+    switch(event) {
+        case ESP_AVRC_TG_CONNECTION_STATE_EVT:
+        {
+            uint8_t *bda = rc->conn_stat.remote_bda;
+            ESP_LOGI(TAG, "AVRC tg conn_state evt: connected[%d], addr[%02x:%02x:%02x:%02x:%02x:%02x]", rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+            break;
+        }
+        case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC passthrough cmd: key_code 0x%x, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
+            break;
+        }
+        case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC set absolute volume: %d%%", (int)rc->set_abs_vol.volume * 100/ 0x7f);
+            /* volume_set_by_controller(rc->set_abs_vol.volume); */
+            break;
+        }
+        case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC register event notification: %d, param: 0x%x", rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
+            /*
+            if (rc->reg_ntf.event_id == ESP_AVRC_RN_VOLUME_CHANGE) {
+                s_volume_notify = true;
+                esp_avrc_rn_param_t rn_param;
+                rn_param.volume = s_volume;
+                esp_avrc_tg_send_rn_rsp(ESP_AVRC_RN_VOLUME_CHANGE, ESP_AVRC_RN_RSP_INTERIM, &rn_param);
+            }
+            */
+            break;
+        }
+        case ESP_AVRC_TG_REMOTE_FEATURES_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC remote features %x, CT features %x", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
+            break;
+        }
+        default:
+            ESP_LOGE(TAG, "%s unhandled evt %d", __func__, event);
+            break;
+    }
+}
+
+
+void bt_rc_ct_cb(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_param_t *param) {
+    switch (event) {
+    case ESP_AVRC_CT_METADATA_RSP_EVT:
+        {
+            esp_avrc_ct_cb_param_t *rc = (esp_avrc_ct_cb_param_t *)(param);
+            uint8_t *attr_text = (uint8_t *) malloc (rc->meta_rsp.attr_length + 1);
+            memcpy(attr_text, rc->meta_rsp.attr_text, rc->meta_rsp.attr_length);
+            attr_text[rc->meta_rsp.attr_length] = 0;
+
+            rc->meta_rsp.attr_text = attr_text;
+        }
+        /* fall through */
+    case ESP_AVRC_CT_CONNECTION_STATE_EVT:
+    case ESP_AVRC_CT_PASSTHROUGH_RSP_EVT:
+    case ESP_AVRC_CT_CHANGE_NOTIFY_EVT:
+    case ESP_AVRC_CT_REMOTE_FEATURES_EVT:
+    case ESP_AVRC_CT_GET_RN_CAPABILITIES_RSP_EVT: {
+        work_dispatch(av_hdl_avrc_ct_evt, event, param, sizeof(esp_avrc_ct_cb_param_t));
+        break;
+    }
+    default:
+        ESP_LOGE(TAG, "Invalid AVRC event: %d", event);
+        break;
+    }
+}
+
+
+void bt_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_param_t *param) {
+    switch (event) {
+        case ESP_AVRC_TG_CONNECTION_STATE_EVT:
+        case ESP_AVRC_TG_REMOTE_FEATURES_EVT:
+        case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT:
+        case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT:
+        case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT:
+            work_dispatch(av_hdl_avrc_tg_evt, event, param, sizeof(esp_avrc_tg_cb_param_t));
+            break;
+        default:
+            ESP_LOGE(TAG, "Invalid AVRC event: %d", event);
+            break;
+    }
+}
+
+
+void bt_hdl_stack_evt(uint16_t event, void *param) {
+    switch(event) {
+        case BT_EVT_STACK_UP:
+        {
+            ESP_LOGD(TAG, "%s, stack_up evt", __func__);
+            char *dev_name = "ShockSpeaker";
+            esp_bt_dev_set_device_name(dev_name);
+
+            esp_bt_gap_register_callback(bt_gap_cb);
+
+            /* AVRCP Controller */
+            ESP_ERROR_CHECK(esp_avrc_ct_init());
+            esp_avrc_ct_register_callback(bt_rc_ct_cb);
+            /* initialize AVRCP target */
+            ESP_ERROR_CHECK(esp_avrc_tg_init());
+            esp_avrc_tg_register_callback(bt_rc_tg_cb);
+
+            esp_avrc_rn_evt_cap_mask_t evt_set = {0};
+            esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_SET, &evt_set, ESP_AVRC_RN_VOLUME_CHANGE);
+            ESP_ERROR_CHECK(esp_avrc_tg_set_rn_evt_cap(&evt_set));
+
+
+            /* A2DP Sink */
+            esp_a2d_register_callback(bt_a2d_cb);
+            esp_a2d_sink_register_data_callback(bt_a2d_data_cb);
+            esp_a2d_sink_init();
+
+            /* Set to connectable */
+            esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+
+            break;
+        }
+        default:
+            ESP_LOGE(TAG, "%s unhandled event %d", __func__, event);
+            break;
+    }
+}
+
+
 static void bt_task(void *arg) {
-    uint8_t *data = calloc(BT_BUF_SIZE, sizeof(char));
-    size_t bytes_read;
-
-    bt_stack_up();
-
     ESP_LOGD(TAG, "Starting loop");
 
     msg_t msg;
@@ -227,16 +424,18 @@ static void bt_task(void *arg) {
 
         // Wait if not running
         // TODO: This can probaly be done with an interrupt
+        /*
         if (s_state->status != PLAYING) {
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
+        */
 
         /* if (xQueueReceive(s_bt_task_queue, &msg, portMAX_DELAY) == pdTRUE) { */
         if (xQueueReceive(s_bt_task_queue, &msg, 100/portTICK_RATE_MS) == pdTRUE) {
             ESP_LOGD(TAG, "%s, sig 0x%x, evt 0x%x", __func__, msg.signal, msg.event);
             switch(msg.signal) {
-                case BT_APP_SIG_WORK_DISPATCH:
+                case BT_SIG_WORK_DISPATCH:
                     if (msg.cb)
                         msg.cb(msg.event, msg.param);
                     break;
@@ -249,10 +448,8 @@ static void bt_task(void *arg) {
                 free(msg.param);
         }
     }
-
-    // TODO: This will never run
-    free(data);
 }
+
 
 bool source_bt_play() {
     ESP_LOGI(TAG, "Playing");
@@ -266,6 +463,7 @@ bool source_bt_play() {
     return true;
 }
 
+
 bool source_bt_pause() {
     ESP_LOGI(TAG, "Pausing");
 
@@ -277,6 +475,7 @@ bool source_bt_pause() {
     s_state->status = PAUSED;
     return true;
 }
+
 
 source_state_t *source_bt_init() {
     ESP_LOGI(TAG, "Initializing");
@@ -294,6 +493,8 @@ source_state_t *source_bt_init() {
 
     s_bt_task_queue = xQueueCreate(10, sizeof(msg_t));
     xTaskCreate(bt_task, "Bluetooth", 2048, NULL, configMAX_PRIORITIES - 4, s_bt_task_handle);
+
+    work_dispatch(bt_hdl_stack_evt, BT_EVT_STACK_UP, NULL, 0);
 
     s_state->status = INITIALIZED;
     ESP_LOGI(TAG, "Initialized");
