@@ -2,7 +2,7 @@
 #include "audio_source.h"
 #include "source_sdcard.h"
 #include "source_tone.h"
-#include "source_bluetooth.h"
+/* #include "source_bluetooth.h" */
 #include "pcm.h"
 
 #include "config.h"
@@ -50,8 +50,8 @@ esp_err_t app_main(void) {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-    states[states_len] = source_bt_init();
-    states_len++;
+    /* states[states_len] = source_bt_init(); */
+    /* states_len++; */
 #endif
 
 #ifdef ENABLE_TONE

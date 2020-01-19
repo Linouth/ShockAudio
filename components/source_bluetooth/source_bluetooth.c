@@ -3,6 +3,8 @@
 #include "audio_buffer.h"
 
 #include <stdio.h>
+#include <string.h>
+#include <stdbool.h> 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -14,13 +16,65 @@
 #include "esp_a2dp_api.h"
 #include "esp_gap_bt_api.h"
 
+typedef void (* cb_t)(uint16_t event, void *param);
+
+typedef struct {
+    uint16_t signal;
+    uint16_t event;
+    cb_t     cb;
+    void     *param;
+} msg_t;
+
+#define BT_APP_SIG_WORK_DISPATCH          (0x01)
+
+
 static const char* TAG = "Bluetooth";
 
 static const char *s_a2d_conn_state_str[] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
 static const char *s_a2d_audio_state_str[] = {"Suspended", "Stopped", "Started"};
 
+static xQueueHandle s_bt_task_queue = NULL;
 static xTaskHandle s_bt_task_handle = NULL;
 static source_state_t *s_state;
+
+
+bool send_msg(msg_t *msg) {
+    if (msg == NULL)
+        return false;
+
+    if (xQueueSend(s_bt_task_queue, msg, 10 / portTICK_RATE_MS) != pdTRUE) {
+        ESP_LOGE(TAG, "%s xQueueSend error", __func__);
+        return false;
+    }
+
+    return true;
+}
+
+bool work_dispatch(cb_t cb, uint16_t event, void *params, int param_len) {
+    ESP_LOGD(TAG, "%s event 0x%x, param len %d", __func__, event, param_len);
+
+    msg_t msg;
+    memset(&msg, 0, sizeof(msg_t));
+
+    msg.signal = BT_APP_SIG_WORK_DISPATCH;
+    msg.event = event;
+    msg.cb = cb;
+    
+    if (param_len == 0) {
+        // Send
+        return send_msg(&msg);
+    } else if (params && param_len > 0) {
+        if ((msg.param = malloc(param_len)) != NULL) {
+            memcpy(msg.param, params, param_len);
+            return send_msg(&msg);
+        } else {
+            ESP_LOGE(TAG, "Could not allocate memory for msg.param");
+        }
+    }
+
+    return false;
+}
+    
 
 void bt_init() {
     ESP_LOGI(TAG, "Initializing Bluetooth");
@@ -167,22 +221,33 @@ static void bt_task(void *arg) {
     bt_stack_up();
 
     ESP_LOGD(TAG, "Starting loop");
+
+    msg_t msg;
     for (;;) {
 
         // Wait if not running
-        // TODO: This can probaly be cone with an interrupt
+        // TODO: This can probaly be done with an interrupt
         if (s_state->status != PLAYING) {
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
 
+        /* if (xQueueReceive(s_bt_task_queue, &msg, portMAX_DELAY) == pdTRUE) { */
+        if (xQueueReceive(s_bt_task_queue, &msg, 100/portTICK_RATE_MS) == pdTRUE) {
+            ESP_LOGD(TAG, "%s, sig 0x%x, evt 0x%x", __func__, msg.signal, msg.event);
+            switch(msg.signal) {
+                case BT_APP_SIG_WORK_DISPATCH:
+                    if (msg.cb)
+                        msg.cb(msg.event, msg.param);
+                    break;
+                default:
+                    ESP_LOGW(TAG, "%s, sig 0x%x unknown", __func__, msg.signal);
+                    break;
+            }
 
-        /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
-        /* bytes_written = audio_write_ringbuf(data, bytes_read, SOURCE_SDCARD); */
-        /* xRingbufferSend(s_state->buffer.data, data, bytes_read, portMAX_DELAY); */
-        /* ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_read); */
-
-        vTaskDelay(pdMS_TO_TICKS(10));
+            if (msg.param)
+                free(msg.param);
+        }
     }
 
     // TODO: This will never run
@@ -227,6 +292,7 @@ source_state_t *source_bt_init() {
     s_state->play = &source_bt_play;
     s_state->pause = &source_bt_pause;
 
+    s_bt_task_queue = xQueueCreate(10, sizeof(msg_t));
     xTaskCreate(bt_task, "Bluetooth", 2048, NULL, configMAX_PRIORITIES - 4, s_bt_task_handle);
 
     s_state->status = INITIALIZED;
@@ -234,3 +300,6 @@ source_state_t *source_bt_init() {
 
     return s_state;
 }
+
+
+// TODO: Shutdown function
