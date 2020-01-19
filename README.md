@@ -2,52 +2,49 @@
 
 This firmware is used to make a network/bluetooth speaker using an ESP32. Plan is to make a custom PCB as well.
 
-*This is developed for the SHOCK committee of Scintilla*
-
 ### Todo
-Basic:
-- [x] Split i2s export and SD audio source into separate tasks
-- [x] Add a state struct to pass to the tasks. This struct will contain flags for the audio sources to toggle and which buffers the sources can use. It should also add weights to the sources for later mixing.
-- [x] Add pointer to ringbuffer to the audio\_write\_ringbuf function.
-    - I mean, it works but its pretty messy right now.
-- [ ] Add support for multiple sample rates (stretch or shrink signal)
-- [ ] Add support for multiple bit per sample (pad with zeros or remove data)
-- [ ] Add basic mixing of channels
-- [ ] Fix endianness
-
-Advanced:
-- [ ] Add bluetooth sink as audio source (duh...)
-    - It is kind of working? Can connect, can receive data, data still needs to be reshaped
-        - Not really actually
-    - [ ] Add SSP
-    - [ ] ~~(Wayyy later) Add more advanced codecs like aptX [Unofficial open source implementation](https://github.com/Arkq/openaptx)~~
-        - SBC is actually really good, and probably superior to AptX (After modifications like [2])
-- [ ] Rework all memory related code, it's a mess right now...
-- [ ] Rework the whole modular system and split into ESPIDF components
-- [ ] Add some wifi capabilities
-- [ ] Add spotify connect support 
-
-
-Straight forward tasks:
+General:
 - [x] Move audio\_source enum to some global header (config.h?)
     - Moved to audio.h global header
 - [x] Get rid of audio\_state struct and make a PCM configuration struct
 - [x] Move audio.c stuff to renderer component
 - [x] Create general 'Audio Source' component with structs/enums for state etc
 - [x] Move SD audio source to its own component
-    - ~~Done, still needs testing though.~~
+    - Done, ~~still needs testing though.~~
 - [x] Add functions/macros to audio_source component to init, start, pause, stop all sources
     - Not all, but play and pause are state elements now.
-- [x] Write function to resample audio data
-    - Only upsampling, since downsampling is probably never needed.
-    - Can still use some work, especially when the samplerates are not multiples of eachother.
-- [ ] Write function to transform bits per sample
+- [ ] Look into separating I2S and Mixer from main loop/task
 - [ ] Create Mixer component
-- [ ] Add states to audio sources (Running, Stopped, Uninitialized, etc.)
+- [ ] Add proper states to audio sources (Running, Stopped, Uninitialized, etc.)
     - With corresponding functions to set and get this state
     - Possibly suspend main tasks in the source when stopped / paused
-- [ ] Actually write (fix) Tone and Bluetooth audio sources
 
+Bluetooth:
+- [ ] Change state on sink and source
+- [ ] Add some proper volume handling
+- [ ] Add some proper metadata handling (with posibility to export data for e.g. display)
+- [ ] Add ability for media control from sink
+- [ ] Clean code and sort callbacks and handler functions
+- [ ] Better enum names?
+- [ ] Take another look at the A2D codec config
+- [ ] SSP
+- [ ] ~~(Wayyy later) Add more advanced codecs like aptX [Unofficial open source implementation](https://github.com/Arkq/openaptx)~~
+    - SBC is actually really good, and probably superior to AptX (After modifications like [2])
+
+Tone:
+- [ ] Fix.
+
+Resampling/bitdepth:
+- [ ] Take another look at upsampling, it is kinda buggy still
+    - Especially when samplerates are not multiples of eachother.
+- [ ] Downsampling? might not be needed
+- [ ] Write code to transform bitdepth
+- [ ] Fix endianness?
+
+Advanced:
+- [ ] Add some wifi capabilities
+- [ ] Add spotify connect support 
+- [ ] Add some way for multiple devices to communicate and sync audio (a la sonos)
 
 ### Interesting reads
 - [[1]: Audio over Bluetooth: most detailed information about profiles, codecs, and devices](https://habr.com/en/post/456182/)
