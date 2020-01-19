@@ -41,6 +41,10 @@ Resampling/bitdepth:
 - [ ] Write code to transform bitdepth
 - [ ] Fix endianness?
 
+SDCard:
+- [ ] Way to simply play back (multiple?) audio files, to signal information
+- [ ] Add method to play back music from SDcard? 
+
 Advanced:
 - [ ] Add some wifi capabilities
 - [ ] Add spotify connect support 
