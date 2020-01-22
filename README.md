@@ -20,12 +20,14 @@ General:
     - Possibly suspend main tasks in the source when stopped / paused
 
 Bluetooth:
-- [ ] Change state on sink and source
+- [x] Change state on sink and source
 - [ ] Add some proper volume handling
 - [ ] Add some proper metadata handling (with posibility to export data for e.g. display)
+    - Now receiving metadata, but not saving yet
 - [ ] Add ability for media control from sink
-- [ ] Clean code and sort callbacks and handler functions
-- [ ] Better enum names?
+    - Can now play and pause (not tested yet)
+- [x] Clean code and sort callbacks and handler functions
+- [x] Better enum names?
 - [ ] Take another look at the A2D codec config
 - [ ] SSP
 - [ ] ~~(Wayyy later) Add more advanced codecs like aptX [Unofficial open source implementation](https://github.com/Arkq/openaptx)~~

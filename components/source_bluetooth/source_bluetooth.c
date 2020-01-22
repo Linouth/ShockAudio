@@ -19,11 +19,13 @@
 #include "audio_source.h"
 #include "audio_buffer.h"
 
+static const char* TAG = "Bluetooth";
+
 
 static const char *s_a2d_conn_state_str[] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
 static const char *s_a2d_audio_state_str[] = {"Suspended", "Stopped", "Started"};
 
-static esp_avrc_rn_evt_cap_mask_t s_avrc_peer_rn_cap;
+static esp_avrc_rn_evt_cap_mask_t s_peer_capabilities;
 
 static xQueueHandle s_bt_task_queue = NULL;
 static xTaskHandle s_bt_task_handle = NULL;
@@ -113,7 +115,7 @@ static void bt_init() {
 }
 
 static bool is_capable(esp_avrc_rn_event_ids_t cap) {
-    return esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_TEST, &s_avrc_peer_rn_cap, cap);
+    return esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_TEST, &s_peer_capabilities, cap);
 }
 
 static void list_caps() {
@@ -176,6 +178,12 @@ static void list_caps() {
     }
 }
 
+static void av_evt_playback_changed() {
+    if (is_capable(ESP_AVRC_RN_PLAY_STATUS_CHANGE)) {
+        esp_avrc_ct_send_register_notification_cmd(TL_PLAYBACK_CHANGE, ESP_AVRC_RN_PLAY_STATUS_CHANGE, 0);
+    }
+}
+
 static void av_evt_new_track() {
     // request metadata
     uint8_t attr_mask = ESP_AVRC_MD_ATTR_TITLE | ESP_AVRC_MD_ATTR_ARTIST | ESP_AVRC_MD_ATTR_ALBUM;
@@ -183,12 +191,6 @@ static void av_evt_new_track() {
 
     if (is_capable(ESP_AVRC_RN_TRACK_CHANGE)) {
         esp_avrc_ct_send_register_notification_cmd(TL_TRACK_CHANGE, ESP_AVRC_RN_TRACK_CHANGE, 0);
-    }
-}
-
-static void av_evt_playback_changed() {
-    if (is_capable(ESP_AVRC_RN_PLAY_STATUS_CHANGE)) {
-        esp_avrc_ct_send_register_notification_cmd(TL_PLAYBACK_CHANGE, ESP_AVRC_RN_PLAY_STATUS_CHANGE, 0);
     }
 }
 
@@ -422,7 +424,7 @@ void av_hdl_avrc_ct_evt(uint16_t event, void *param) {
                 esp_avrc_ct_send_get_rn_capabilities_cmd(TL_GET_CAPS);
             } else {
                 // Clear capability bits
-                s_avrc_peer_rn_cap.bits = 0;
+                s_peer_capabilities.bits = 0;
             }
             break;
         }
@@ -446,7 +448,7 @@ void av_hdl_avrc_ct_evt(uint16_t event, void *param) {
         {
             ESP_LOGI(TAG, "remote rn_cap: count %d, bitmask 0x%x", rc->get_rn_caps_rsp.cap_count,
                      rc->get_rn_caps_rsp.evt_set.bits);
-            s_avrc_peer_rn_cap.bits = rc->get_rn_caps_rsp.evt_set.bits;
+            s_peer_capabilities.bits = rc->get_rn_caps_rsp.evt_set.bits;
             list_caps();
             av_evt_new_track();
             av_evt_playback_changed();
@@ -583,6 +585,8 @@ bool source_bt_play() {
         return false;
     }
 
+    send_passthrough(ESP_AVRC_PT_CMD_PLAY, ESP_AVRC_PT_CMD_STATE_PRESSED);
+
     s_state->status = PLAYING;
     return true;
 }
@@ -595,6 +599,8 @@ bool source_bt_pause() {
         ESP_LOGE(TAG, "Source not ready");
         return false;
     }
+
+    send_passthrough(ESP_AVRC_PT_CMD_PAUSE, ESP_AVRC_PT_CMD_STATE_PRESSED);
 
     s_state->status = PAUSED;
     return true;

@@ -4,8 +4,6 @@
 #include "audio_buffer.h"
 #include "audio_source.h"
 
-static const char* TAG = "Bluetooth";
-
 #define BT_BUF_SIZE 2048*4
 
 
