@@ -4,6 +4,7 @@
 #include "source_tone.h"
 #include "source_bluetooth.h"
 #include "pcm.h"
+#include "mixer.h"
 
 #include "config.h"
 
@@ -43,9 +44,11 @@ esp_err_t app_main(void) {
     bool running;
 
     renderer_init(&renderer_config);
+    RingbufHandle_t mixer_buffer = mixer_init();
 
 #ifdef ENABLE_SDCARD
     states[states_len] = source_sdcard_init();
+    mixer_add_source(states[states_len]);
     states_len++;
     source_sdcard_play_file("/sdcard/strobe.wav");
     /* source_sdcard_play_file("/sdcard/test.wav"); */
@@ -53,15 +56,17 @@ esp_err_t app_main(void) {
 
 #ifdef ENABLE_BLUETOOTH
     states[states_len] = source_bt_init();
+    mixer_add_source(states[states_len]);
     states_len++;
 #endif
 
 #ifdef ENABLE_TONE
     states[states_len] = source_tone_init();
+    mixer_add_source(states[states_len]);
     states_len++;
 
     vTaskDelay(1000/portTICK_PERIOD_MS);
-    source_tone_play_tone(SQUARE, 1000, 20000, &renderer_config.pcm_format);
+    source_tone_play_tone(SQUARE, 100, 20000, &renderer_config.pcm_format);
 #endif
 
     /*
@@ -78,6 +83,7 @@ esp_err_t app_main(void) {
         running = false;
         highest_sample_rate = 0;
 
+        /**
         for (int i = 0; i < states_len; i++) {
 
             if (states[i]->status == PLAYING) {
@@ -91,14 +97,14 @@ esp_err_t app_main(void) {
                 
                 if (bytes_read > 0 && data) {
                     // Upsample everything (if SR is equal, data is being copied)
-                    /* out = upsample(data, bytes_read, &upsampled_len, states[i]->buffer.format, highest_sample_rate); */
+                    // out = upsample(data, bytes_read, &upsampled_len, states[i]->buffer.format, highest_sample_rate);
                     // TODO: Change bit depth
                     // TODO: Send data to mixer
 
-                    /* render_samples((int16_t *)out, upsampled_len); */
+                    // render_samples((int16_t *)out, upsampled_len);
                     render_samples((int16_t *)data, bytes_read);
                     vRingbufferReturnItem(states[i]->buffer.data, data);
-                    /* free(out); */
+                    // free(out);
                     dma_cleared = false;
                 }
             }
@@ -114,8 +120,18 @@ esp_err_t app_main(void) {
             dma_cleared = true;
         }
 
-        if (!running)
+        if (!running) 
             vTaskDelay(pdMS_TO_TICKS(50));
+        **/
+
+        data = (uint8_t *)xRingbufferReceive(mixer_buffer, &bytes_read, 0);
+        if (bytes_read > 0 && data) {
+            render_samples((int16_t *)data, bytes_read);
+            vRingbufferReturnItem(mixer_buffer, data);
+            dma_cleared = false;
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(20));
+        }
     }
 
     return 0;

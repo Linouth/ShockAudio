@@ -94,7 +94,7 @@ static void tone_task(void *arg) {
             }
 
             if (cycle_count >= cycles_required) {
-                ESP_LOGD(TAG, "Tone finished");
+                ESP_LOGI(TAG, "Tone finished");
                 free(tone->cycle.data);
                 free(tone);
                 tone = NULL;
@@ -104,7 +104,7 @@ static void tone_task(void *arg) {
 
         if (bytes_to_write > 0) {
             xRingbufferSend(s_state->buffer.data, data, bytes_to_write, portMAX_DELAY);
-            ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_to_write);
+            /* ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_to_write); */
         } else {
             vTaskDelay(100/portTICK_PERIOD_MS);
         }
