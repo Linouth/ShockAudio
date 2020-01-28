@@ -6,7 +6,7 @@
 static const char* TAG = "PCM";
 
 
-uint8_t *upsample(uint8_t *data, size_t data_len, size_t *out_len, pcm_format pcm, int to_rate) {
+uint8_t *upsample(uint8_t *data, size_t data_len, size_t *out_len, pcm_format_t pcm, int to_rate) {
     int bytes_per_sample = pcm.bits_per_sample <= 16 ? (pcm.bits_per_sample/8) : 4;
     int sample_mult = pcm.channels * bytes_per_sample;  // From sample_count to byte count
     int sample_count = data_len / (sample_mult);

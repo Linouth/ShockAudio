@@ -34,7 +34,12 @@ Bluetooth:
     - SBC is actually really good, and probably superior to AptX (After modifications like [2])
 
 Tone:
-- [ ] Fix.
+- [x] Fix.
+    - Much better now
+- [ ] Add different waveforms
+- [ ] Add a simple delay
+- [ ] Add some structure to create melodies
+- [ ] Properly handle signed to bits_per_sample in gen_cycle()
 
 Resampling/bitdepth:
 - [ ] Take another look at upsampling, it is kinda buggy still

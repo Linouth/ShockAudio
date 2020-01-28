@@ -1,16 +1,16 @@
 #ifndef AUDIO_BUFFER_H
 #define AUDIO_BUFFER_H
 
+#include "pcm.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
-
-#include "pcm.h"
 
 #define BUFFER_SIZE 2048*4
 
 typedef struct {
     RingbufHandle_t data;
-    pcm_format format;
+    pcm_format_t format;
     uint8_t channel;
 } buffer_t;
 

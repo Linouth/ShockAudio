@@ -1,6 +1,8 @@
 #ifndef AUDIO_RENDERER_H
 #define AUDIO_RENDERER_H
 
+#include "pcm.h"
+
 #include "freertos/FreeRTOS.h"
 #include "driver/i2s.h"
 
@@ -12,8 +14,7 @@
 
 
 typedef struct {
-    uint16_t sample_rate;
-    i2s_bits_per_sample_t bits_per_sample;
+    pcm_format_t pcm_format;
     i2s_port_t i2s_num;
     i2s_pin_config_t pin_config;
 } renderer_config_t;

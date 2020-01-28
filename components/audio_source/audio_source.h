@@ -34,7 +34,7 @@ typedef struct source_state {
     buffer_t buffer;
     source_status_t status;
 
-    bool (*play)();
+    bool (*play)(void *param);
     bool (*pause)();
 } source_state_t;
 

@@ -13,8 +13,8 @@ static void i2s_init(renderer_config_t *config) {
 
     i2s_config_t i2s_config = {
         .mode = I2S_MODE_MASTER | I2S_MODE_TX,
-        .sample_rate = config->sample_rate,
-        .bits_per_sample = config->bits_per_sample,
+        .sample_rate = config->pcm_format.sample_rate,
+        .bits_per_sample = config->pcm_format.bits_per_sample,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB, */
         .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB,

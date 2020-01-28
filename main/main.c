@@ -17,10 +17,12 @@
 static const char* TAG = "Main";
 
 esp_err_t app_main(void) {
-
     renderer_config_t renderer_config = {
-        .sample_rate = 44100,
-        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+        .pcm_format = {
+            .sample_rate = 44100,
+            .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+            .channels = 2
+        },
         .i2s_num = 0,
         .pin_config = {
             .bck_io_num = 26,
@@ -59,7 +61,7 @@ esp_err_t app_main(void) {
     states_len++;
 
     vTaskDelay(1000/portTICK_PERIOD_MS);
-    source_tone_play_tone(3000, 44100, 16, 2, 1000);
+    source_tone_play_tone(SQUARE, 1000, 20000, &renderer_config.pcm_format);
 #endif
 
     /*
