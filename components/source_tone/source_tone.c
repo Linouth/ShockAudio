@@ -58,6 +58,7 @@ static cycle_t gen_cycle(wave_t wave_type, int freq, pcm_format_t *pcm_format) {
 static void tone_task(void *arg) {
     uint8_t *data = calloc(TONE_BUF_SIZE, sizeof(char));
     unsigned int bytes_to_write = 0;
+    uint8_t bits_per_sample = 0;
 
     tone_t *tone = NULL;
     unsigned int cycles_required = 0;
@@ -76,6 +77,7 @@ static void tone_task(void *arg) {
         if (tone || xQueueReceive(s_tone_queue, &tone, portMAX_DELAY)) {
             // Tone available
             bytes_to_write = 0;
+            bits_per_sample = tone->pcm_format.bits_per_sample;
 
             // New tone, Generate cycle data
             if (tone->cycle.size == 0) {
@@ -103,6 +105,7 @@ static void tone_task(void *arg) {
         }
 
         if (bytes_to_write > 0) {
+            s_state->buffer.format.bits_per_sample = bits_per_sample;
             xRingbufferSend(s_state->buffer.data, data, bytes_to_write, portMAX_DELAY);
             /* ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_to_write); */
         } else {

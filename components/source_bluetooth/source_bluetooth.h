@@ -4,7 +4,7 @@
 #include "audio_buffer.h"
 #include "audio_source.h"
 
-#define BT_BUF_SIZE 2048*4
+#define BT_BUF_SIZE 2048*2
 
 
 typedef void (* cb_t)(uint16_t event, void *param);

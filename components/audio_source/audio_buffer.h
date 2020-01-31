@@ -6,7 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
 
-#define BUFFER_SIZE 2048*4
+#define BUFFER_SIZE 2048*2
 
 typedef struct {
     RingbufHandle_t data;

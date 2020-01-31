@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define TONE_BUF_SIZE 2048*4
+#define TONE_BUF_SIZE 2048*2
 
 typedef enum {
     SQUARE,

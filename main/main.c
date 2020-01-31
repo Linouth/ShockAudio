@@ -44,7 +44,7 @@ esp_err_t app_main(void) {
     bool running;
 
     renderer_init(&renderer_config);
-    RingbufHandle_t mixer_buffer = mixer_init();
+    mixer_init();
 
 #ifdef ENABLE_SDCARD
     states[states_len] = source_sdcard_init();
@@ -66,7 +66,7 @@ esp_err_t app_main(void) {
     states_len++;
 
     vTaskDelay(1000/portTICK_PERIOD_MS);
-    source_tone_play_tone(SQUARE, 100, 20000, &renderer_config.pcm_format);
+    source_tone_play_tone(SQUARE, 300, 3000, &renderer_config.pcm_format);
 #endif
 
     /*
@@ -124,14 +124,14 @@ esp_err_t app_main(void) {
             vTaskDelay(pdMS_TO_TICKS(50));
         **/
 
-        data = (uint8_t *)xRingbufferReceive(mixer_buffer, &bytes_read, 0);
-        if (bytes_read > 0 && data) {
-            render_samples((int16_t *)data, bytes_read);
-            vRingbufferReturnItem(mixer_buffer, data);
-            dma_cleared = false;
-        } else {
-            vTaskDelay(pdMS_TO_TICKS(20));
-        }
+        /* data = (uint8_t *)xRingbufferReceive(mixer_buffer, &bytes_read, 0); */
+        /* if (bytes_read > 0 && data) { */
+        /*     render_samples((int16_t *)data, bytes_read); */
+        /*     vRingbufferReturnItem(mixer_buffer, data); */
+        /*     dma_cleared = false; */
+        /* } else { */
+        /* } */
+            vTaskDelay(pdMS_TO_TICKS(500));
     }
 
     return 0;

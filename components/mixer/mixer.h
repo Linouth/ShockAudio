@@ -6,9 +6,9 @@
 
 #include "audio_source.h"
 
-#define MIXER_BUF_LEN 2048*8
+#define MIXER_BUF_LEN 2048*2
 
 void mixer_add_source(source_state_t *state);
-RingbufHandle_t mixer_init();
+void mixer_init();
 
 #endif
