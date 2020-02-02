@@ -36,7 +36,7 @@ static cycle_t gen_cycle(wave_t wave_type, int freq, pcm_format_t *pcm_format) {
     case SQUARE:
     {
         memset(mono_cycle, 0, mono_sample_size*samples_per_cycle/2);
-        memset(mono_cycle+mono_sample_size*(samples_per_cycle - samples_per_cycle/2), 0x7F, mono_sample_size*(samples_per_cycle - samples_per_cycle/2));
+        memset(mono_cycle+mono_sample_size*(samples_per_cycle - samples_per_cycle/2), 0x07, mono_sample_size*(samples_per_cycle - samples_per_cycle/2));
         break;
     }
     default:
@@ -172,7 +172,7 @@ source_state_t *source_tone_init() {
     s_state->play = &source_tone_play;
     s_state->pause = &source_tone_pause;
 
-    xTaskCreate(tone_task, "Tone", 2048, NULL, configMAX_PRIORITIES - 4, s_tone_task_handle);
+    xTaskCreate(tone_task, "Tone", 1750, NULL, configMAX_PRIORITIES - 4, s_tone_task_handle);
 
     s_tone_queue = xQueueCreate(10, sizeof(tone_t *));
     if (!s_tone_queue)

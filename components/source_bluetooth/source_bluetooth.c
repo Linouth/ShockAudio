@@ -50,7 +50,7 @@ bool send_msg(msg_t *msg) {
 
 
 bool work_dispatch(cb_t cb, uint16_t event, void *params, int param_len) {
-    ESP_LOGD(TAG, "%s event 0x%x, param len %d", __func__, event, param_len);
+    /* ESP_LOGD(TAG, "%s event 0x%x, param len %d", __func__, event, param_len); */
 
     msg_t msg;
     memset(&msg, 0, sizeof(msg_t));
@@ -244,7 +244,7 @@ void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
 
 
 void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
-    ESP_LOGD(TAG, "Data received: %d bytes", len);
+    /* ESP_LOGD(TAG, "Data received: %d bytes", len); */
 
     xRingbufferSend(s_state->buffer.data, data, len, portMAX_DELAY);
 }
@@ -622,7 +622,7 @@ source_state_t *source_bt_init() {
     s_state->pause = &source_bt_pause;
 
     s_bt_task_queue = xQueueCreate(10, sizeof(msg_t));
-    xTaskCreate(bt_task, "Bluetooth", 2048, NULL, configMAX_PRIORITIES - 4, s_bt_task_handle);
+    xTaskCreate(bt_task, "Bluetooth", 2000, NULL, configMAX_PRIORITIES - 4, s_bt_task_handle);
 
     work_dispatch(bt_hdl_stack_evt, BT_EVT_STACK_UP, NULL, 0);
 

@@ -17,7 +17,7 @@ static void i2s_init(renderer_config_t *config) {
         .bits_per_sample = config->pcm_format.bits_per_sample,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB, */
-        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB,
+        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB,
         .dma_buf_count = DMA_BUF_COUNT,
         .dma_buf_len = DMA_BUF_LEN,
         .use_apll = false,  // Maybe

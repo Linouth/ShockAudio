@@ -65,8 +65,8 @@ esp_err_t app_main(void) {
     mixer_add_source(states[states_len]);
     states_len++;
 
-    vTaskDelay(1000/portTICK_PERIOD_MS);
-    source_tone_play_tone(SQUARE, 300, 3000, &renderer_config.pcm_format);
+    vTaskDelay(15000/portTICK_PERIOD_MS);
+    source_tone_play_tone(SQUARE, 300, 10000, &renderer_config.pcm_format);
 #endif
 
     /*

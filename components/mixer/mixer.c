@@ -19,7 +19,7 @@ static unsigned int s_states_len = 0;
 static void mixer_task(void *params) {
     source_state_t *state;
     uint8_t *out_buf = calloc(MIXER_BUF_LEN, sizeof(char));
-    uint8_t *data;
+    int8_t *data;
 
     int32_t tmp;
     int32_t *samples = calloc(MIXER_BUF_LEN, sizeof(int32_t));  // Mono samples (so L, R, L, R with stereo)
@@ -56,7 +56,8 @@ static void mixer_task(void *params) {
             state = states_playing[i];
             sample_index = 0;
 
-            data = (uint8_t *) xRingbufferReceive(state->buffer.data, &bytes_read, portMAX_DELAY);
+            // Expected format:  data[..] = { left[7:0], left[15:8], right[7:0], right[15:8],left[7:0], ... } 
+            data = (int8_t *) xRingbufferReceive(state->buffer.data, &bytes_read, portMAX_DELAY);
             max_bytes_read = (bytes_read > max_bytes_read) ?
                 bytes_read : max_bytes_read;
             bytes_per_sample = (state->buffer.format.bits_per_sample > 16) ?
@@ -65,22 +66,19 @@ static void mixer_task(void *params) {
                 bytes_per_sample : max_bytes_per_sample;
 
             if (bytes_read > 0 && data) {
-                /* for (j = 0; j < bytes_read; j++) { */
-                /*     out_buf[j] = data[j]; */
-                /* } */
 
-                // TODO: The data handling is broken, driect writing to output buffer works fine but this does not:
-                //       Too tired to fix this now.
+                // TODO: Move this into a separate helper function to pack and unpack the data into signed numbers
                 for (j = 0; j < bytes_read; j+=bytes_per_sample) {
 
                     // Convert bytes to single signed integer
                     tmp = 0;
                     for (k = 0; k < bytes_per_sample; k++) {
-                        tmp |= data[j+k] << (8*k);
+                        tmp |= (data[j+k] << (8*k)) & (0xff << (8*k));
                     }
+                    tmp |= data[j+bytes_per_sample-1] << (8*(bytes_per_sample-1));
 
                     // Process data
-                    tmp >>= 10;
+                    tmp >>= 2;
 
                     samples[sample_index++] += tmp;
                 }
@@ -91,6 +89,7 @@ static void mixer_task(void *params) {
         }
         
         if (max_bytes_read > 0) {
+            // TODO: Move this into a separate helper function to pack and unpack the data into signed numbers
             for (i = 0; i < sample_count; i++) {
                 for (j = 0; j < max_bytes_per_sample; j++) {
                     out_buf[i*max_bytes_per_sample + j] = (samples[i]>>(8*j) & 0xff);

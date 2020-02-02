@@ -3,6 +3,9 @@
 This firmware is used to make a network/bluetooth speaker using an ESP32. Plan is to make a custom PCB as well.
 
 ### Todo
+*Priority*:
+- [ ] Change audio buffer from data byte array to signed int array for easy processing
+
 General:
 - [x] Move audio\_source enum to some global header (config.h?)
     - Moved to audio.h global header

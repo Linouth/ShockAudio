@@ -3,6 +3,6 @@
 
 /* #define ENABLE_SDCARD */
 #define ENABLE_BLUETOOTH
-/* #define ENABLE_TONE */
+#define ENABLE_TONE
 
 #endif
