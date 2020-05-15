@@ -4,3 +4,4 @@ compile_commands.json
 .vscode/
 .clangd/
 .ipynb_checkpoints/
+tags
