@@ -2,7 +2,7 @@
 #define SOURCE_SDCARD_H
 
 #include "audio_buffer.h"
-#include "audio_source.h"
+#include "source.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -22,6 +22,6 @@ int source_sdcard_play_file(char* filename);
  * Assigns play and pause functions to the structure. Also creates task.
  * @return  State structure
  */
-source_state_t *source_sdcard_init();
+void source_sdcard_init();
 
 #endif

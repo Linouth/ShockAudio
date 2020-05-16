@@ -1,10 +1,10 @@
 #include "audio_renderer.h"
-#include "audio_source.h"
+#include "source.h"
 #include "source_sdcard.h"
-#include "source_tone.h"
-#include "source_bluetooth.h"
+/* #include "source_tone.h" */
+/* #include "source_bluetooth.h" */
 #include "pcm.h"
-#include "mixer.h"
+/* #include "mixer.h" */
 
 #include "config.h"
 
@@ -33,8 +33,8 @@ esp_err_t app_main(void) {
         }
     };
 
-    source_state_t *states[SOURCE_COUNT];  // Change to linked list? 
-    int states_len = 0;  // TODO: Think of something better
+    /* source_state_t *states[SOURCE_COUNT];  // Change to linked list? */ 
+    /* int states_len = 0;  // TODO: Think of something better */
 
     uint8_t *data, *out;
     size_t bytes_read, upsampled_len;
@@ -44,12 +44,13 @@ esp_err_t app_main(void) {
     bool running;
 
     renderer_init(&renderer_config);
-    mixer_init();
+    /* mixer_init(); */
 
 #ifdef ENABLE_SDCARD
-    states[states_len] = source_sdcard_init();
-    mixer_add_source(states[states_len]);
-    states_len++;
+    /* states[states_len] = source_sdcard_init(); */
+    /* mixer_add_source(states[states_len]); */
+    /* states_len++; */
+    source_sdcard_init();
     source_sdcard_play_file("/sdcard/strobe.wav");
     /* source_sdcard_play_file("/sdcard/test.wav"); */
 #endif
