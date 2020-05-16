@@ -47,7 +47,7 @@ void renderer_destroy() {
     i2s_destroy();
 }
 
-int render_samples(int16_t *buf, size_t buf_len) {
+int render_samples(uint8_t *buf, size_t buf_len) {
     if (!buf) {
         ESP_LOGE(TAG, "Received a invalid buffer");
         return -1;
@@ -56,10 +56,6 @@ int render_samples(int16_t *buf, size_t buf_len) {
     size_t bytes_written;
 
     ESP_LOGD(TAG, "Writing %u bytes to DMA buffer", buf_len);
-    // TODO: Remove this
-    for (int i = 0; i < buf_len/2; i++) { // Hakcy way to reduce volume
-        buf[i] >>= 0;
-    }
     i2s_write(i2s_num, buf, buf_len, &bytes_written, portMAX_DELAY);
 
     return bytes_written;

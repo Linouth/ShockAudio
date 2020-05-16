@@ -1,5 +1,4 @@
 #include "source_sdcard.h"
-#include "source.h"
 #include "audio_buffer.h"
 
 #include "source.h"
@@ -158,7 +157,7 @@ void source_sdcard_init() {
     while(sd_init() != 0)
         vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    ctx = create_source_ctx("SDCARD", SOURCE_SDCARD, 4096);
+    ctx = source_create_ctx("SDCARD", SOURCE_SDCARD, 4096);
 
     // TODO: Do this in task loop for every file
     ctx->buffer.format.sample_rate = 44100;

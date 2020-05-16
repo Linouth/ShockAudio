@@ -6,15 +6,16 @@ static const char *status_names[] = {
     "UNINITIALIZED", "INITIALIZED", "STOPPED", "PAUSED", "PLAYING"
 };
 
-static source_ctx_t *source_ctxs[MAX_SOURCES_NUM];
+static source_ctx_t *source_ctxs[MAX_SOURCES_NUM] = { NULL };
 static int source_ctxs_lut[MAX_SOURCES_NUM];
 static int source_counter = 0;
 
 static const char *TAG = "Source";
 
 int source_get_index(int needle) {
-    for (int e, i = 0; i < MAX_SOURCES_NUM && i < source_counter; i++) {
-        e = source_ctxs_lut[i];
+    for (int i = 0, e = source_ctxs_lut[i];
+            i < MAX_SOURCES_NUM && i < source_counter;
+            e = source_ctxs_lut[++i]) {
         if (e == needle)
             return i;
     }
@@ -56,6 +57,10 @@ source_ctx_t *create_source_ctx(char *source_name, source_t source, size_t bufle
 
     source_counter++;
     return ctx;
+}
+
+source_ctx_t **source_return_ctxs() {
+    return source_ctxs;
 }
 
 bool source_change_status(source_t source, status_t status) {

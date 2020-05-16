@@ -29,7 +29,8 @@ typedef struct {
 } source_ctx_t;
 
 
-source_ctx_t *create_source_ctx(char *source_name, source_t source, size_t buflen);
+source_ctx_t *source_create_ctx(char *source_name, source_t source, size_t buflen);
+source_ctx_t **source_return_ctxs();
 
 #define play(source)        source_change_status(source, PLAYING)
 #define pause(source)       source_change_status(source, PAUSED)
