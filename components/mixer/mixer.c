@@ -13,9 +13,6 @@ static const char* TAG = "Mixer";
 
 static xTaskHandle s_mixer_task_handle = NULL;
 
-/* static source_state_t *s_states[SOURCE_COUNT] = {NULL}; */
-/* static unsigned int s_states_len = 0; */
-
 static source_ctx_t **ctxs;
 
 
@@ -88,8 +85,8 @@ static void mixer_task(void *params) {
     for (;;) { 
         max_sample_rate = 0;
         max_bits_per_sample = 0;
+        max_bytes_per_sample = 0;
         max_bytes_read = 0;
-        dma_cleared = false;
 
         // Find the highest sample- and bitrate
         sources = 0;

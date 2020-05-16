@@ -4,7 +4,7 @@
 /* #include "source_tone.h" */
 /* #include "source_bluetooth.h" */
 #include "pcm.h"
-/* #include "mixer.h" */
+#include "mixer.h"
 
 #include "config.h"
 
@@ -33,18 +33,14 @@ esp_err_t app_main(void) {
         }
     };
 
-    /* source_state_t *states[SOURCE_COUNT];  // Change to linked list? */ 
-    /* int states_len = 0;  // TODO: Think of something better */
+    /* uint8_t *data, *out; */
+    /* size_t bytes_read, upsampled_len; */
+    /* int highest_sample_rate, last_highest_sample_rate = 0; */
 
-    uint8_t *data, *out;
-    size_t bytes_read, upsampled_len;
-    int highest_sample_rate, last_highest_sample_rate = 0;
-
-    bool dma_cleared = false;
-    bool running;
+    /* bool dma_cleared = false; */
+    /* bool running; */
 
     renderer_init(&renderer_config);
-    /* mixer_init(); */
 
 #ifdef ENABLE_SDCARD
     /* states[states_len] = source_sdcard_init(); */
@@ -70,6 +66,8 @@ esp_err_t app_main(void) {
     source_tone_play_tone(SQUARE, 300, 10000, &renderer_config.pcm_format);
 #endif
 
+    mixer_init();
+
     /*
     for (int i = 0; i < states_len; i++) {
         states[i]->play();
@@ -81,8 +79,7 @@ esp_err_t app_main(void) {
      * reformat it and send it to the mixer
      */
     for (;;) {
-        running = false;
-        highest_sample_rate = 0;
+        /* running = false; */
 
         /**
         for (int i = 0; i < states_len; i++) {

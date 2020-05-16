@@ -2,7 +2,6 @@
 #define SOURCE_SDCARD_H
 
 #include "audio_buffer.h"
-#include "source.h"
 
 #include <stdint.h>
 #include <stddef.h>

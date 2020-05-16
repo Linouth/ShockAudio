@@ -16,7 +16,8 @@
 #include "esp_gap_bt_api.h"
 
 #include "source_bluetooth.h"
-#include "audio_source.h"
+/* #include "audio_source.h" */
+#include "source.h"
 #include "audio_buffer.h"
 
 static const char* TAG = "Bluetooth";

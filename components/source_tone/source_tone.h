@@ -1,7 +1,7 @@
 #ifndef SOURCE_TONE_H
 #define SOURCE_TONE_H
 
-#include "audio_source.h"
+/* #include "audio_source.h" */
 #include "audio_buffer.h"
 #include "pcm.h"
 
@@ -28,7 +28,7 @@ typedef struct {
     cycle_t cycle;
 } tone_t;
 
-source_state_t *source_tone_init();
+void *source_tone_init();
 void source_tone_play_tone(wave_t type, uint16_t freq, uint16_t duration, pcm_format_t *pcm_format);
 
 #endif

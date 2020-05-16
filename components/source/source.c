@@ -29,7 +29,7 @@ source_ctx_t *get_source_ctx(source_t source) {
     return source_ctxs[index];
 }
 
-source_ctx_t *create_source_ctx(char *source_name, source_t source, size_t buflen) {
+source_ctx_t *source_create_ctx(const char *source_name, source_t source, size_t buflen) {
     if (source_counter >= MAX_SOURCES_NUM) {
         ESP_LOGE(TAG, "Max number of sources reached: %d", source_counter);
         return NULL;

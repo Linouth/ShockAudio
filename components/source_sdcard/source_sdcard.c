@@ -1,7 +1,6 @@
-#include "source_sdcard.h"
-#include "audio_buffer.h"
-
 #include "source.h"
+#include "source_sdcard.h"
+/* #include "audio_buffer.h" */
 
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
@@ -20,8 +19,7 @@ static const char* TAG = "SDCard";
 #define PIN_NUM_CS   13
 
 static xTaskHandle s_sd_task_handle = NULL;
-/* static source_state_t *s_state; */
-static source_ctx_t *ctx;
+static source_ctx_t *ctx = NULL;
 
 FILE* fd;
 int fd_OK = 0;

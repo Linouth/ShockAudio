@@ -5,7 +5,6 @@
 
 #define MAX_SOURCES_NUM 10
 
-
 typedef enum {
     SOURCE_SDCARD = 0,
     SOURCE_BLUETOOTH,
@@ -25,11 +24,11 @@ typedef struct {
     source_t source;
     status_t status;
     buffer_t buffer;
-    char *name;
+    const char *name;
 } source_ctx_t;
 
 
-source_ctx_t *source_create_ctx(char *source_name, source_t source, size_t buflen);
+source_ctx_t *source_create_ctx(const char *source_name, source_t source, size_t buflen);
 source_ctx_t **source_return_ctxs();
 
 #define play(source)        source_change_status(source, PLAYING)
