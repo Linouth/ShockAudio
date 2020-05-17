@@ -17,7 +17,7 @@ static source_ctx_t **ctxs;
 
 
 // Create signed 32-bit integer from 'bytes' length sample
-int32_t array_to_sample(int offset, uint8_t *arr, size_t bytes, bool big_endian) {
+int32_t buffer_to_sample(int offset, uint8_t *arr, size_t bytes, bool big_endian) {
     int32_t out = 0;
     int i;
 
@@ -35,13 +35,13 @@ int32_t array_to_sample(int offset, uint8_t *arr, size_t bytes, bool big_endian)
 }
 
 // Write 32-bit integer to data array, handling bytes per sample
-void sample_to_array(int32_t sample, int offset, uint8_t *arr, size_t bytes, bool big_endian) {
+void sample_to_buffer(int32_t sample, int offset, uint8_t *arr, size_t bytes, bool big_endian) {
 
     int i;
     arr += offset;
     
     if (big_endian) {
-        for (i = bytes-1; i >= bytes; i--) {
+        for (i = bytes-1; i >= 0; i--) {
             arr[i] = (sample & 0xff);
             sample >>= 8;
         }
@@ -121,12 +121,12 @@ static void mixer_task(void *params) {
                     channel = (channel+1) % 2;
 
                 // Retrieve samples from in and output buffers
-                sampleI = array_to_sample(i, data, bytes_per_sample, false);
-                sampleO = array_to_sample(i, out_buf, max_bytes_per_sample, false);
+                sampleI = buffer_to_sample(i, data, bytes_per_sample, false);
+                sampleO = buffer_to_sample(i, out_buf, max_bytes_per_sample, false);
 
                 // Add them and return new sample to output buffer
                 sampleO += sampleI;
-                sample_to_array(sampleO, i, out_buf, max_bytes_per_sample, false);
+                sample_to_buffer(sampleO, i, out_buf, max_bytes_per_sample, false);
             }
 
             vRingbufferReturnItem(ctx->buffer.data, data);
