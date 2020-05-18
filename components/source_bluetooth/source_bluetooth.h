@@ -41,6 +41,6 @@ enum transmission_layer {
  * Assigns play and pause functions to the structure. Also creates task.
  * @return  State structure
  */
-void *source_bt_init();
+void source_bt_init();
 
 #endif

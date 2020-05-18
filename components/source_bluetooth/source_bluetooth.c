@@ -16,7 +16,6 @@
 #include "esp_gap_bt_api.h"
 
 #include "source_bluetooth.h"
-/* #include "audio_source.h" */
 #include "source.h"
 #include "audio_buffer.h"
 
@@ -30,7 +29,7 @@ static esp_avrc_rn_evt_cap_mask_t s_peer_capabilities;
 
 static xQueueHandle s_bt_task_queue = NULL;
 static xTaskHandle s_bt_task_handle = NULL;
-static source_state_t *s_state;
+static source_ctx_t *ctx;
 
 
 /**
@@ -247,7 +246,7 @@ void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
 void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
     /* ESP_LOGD(TAG, "Data received: %d bytes", len); */
 
-    xRingbufferSend(s_state->buffer.data, data, len, portMAX_DELAY);
+    source_write(SOURCE_BLUETOOTH, data, len);
 }
 
 
@@ -345,13 +344,13 @@ void bt_hdl_a2d_evt(uint16_t event, void *param) {
                         sample_rate = 44100;
                     else if (oct0 & (1 << 4))
                         sample_rate = 48000;
-                    s_state->buffer.format.sample_rate = sample_rate;
+                    ctx->buffer.format.sample_rate = sample_rate;
 
 
                     uint8_t channels = 2;
                     if (oct0 & (1 << 3))
                         channels = 1;
-                    s_state->buffer.format.channels = channels;
+                    ctx->buffer.format.channels = channels;
 
 
                     uint16_t bits_per_sample = 8;
@@ -359,7 +358,7 @@ void bt_hdl_a2d_evt(uint16_t event, void *param) {
                     if (oct1 & (1 << 5) || oct1 & (1 << 4))
                         bits_per_sample = 16;
 
-                    s_state->buffer.format.bits_per_sample = bits_per_sample;
+                    ctx->buffer.format.bits_per_sample = bits_per_sample;
 
                     ESP_LOGI(TAG, "Received configuration: Samplerate %d, bps %d", sample_rate, bits_per_sample);
                 }
@@ -381,13 +380,13 @@ void av_notify_evt_handler(esp_avrc_rn_event_ids_t event, esp_avrc_rn_param_t *p
             ESP_LOGI(TAG, "Playback status changed: 0x%x", param->playback);
             switch(param->playback) {
                 case ESP_AVRC_PLAYBACK_STOPPED:
-                    s_state->status = STOPPED;
+                    ctx->status = STOPPED;
                     break;
                 case ESP_AVRC_PLAYBACK_PLAYING:
-                    s_state->status = PLAYING;
+                    ctx->status = PLAYING;
                     break;
                 case ESP_AVRC_PLAYBACK_PAUSED:
-                    s_state->status = PAUSED;
+                    ctx->status = PAUSED;
                     break;
                 default:
                     break;
@@ -578,59 +577,20 @@ static void bt_task(void *arg) {
 }
 
 
-bool source_bt_play() {
-    ESP_LOGI(TAG, "Playing");
-
-    if (s_state->status == UNINITIALIZED) {
-        ESP_LOGE(TAG, "Source not ready");
-        return false;
-    }
-
-    send_passthrough(ESP_AVRC_PT_CMD_PLAY, ESP_AVRC_PT_CMD_STATE_PRESSED);
-
-    s_state->status = PLAYING;
-    return true;
-}
-
-
-bool source_bt_pause() {
-    ESP_LOGI(TAG, "Pausing");
-
-    if (s_state->status == UNINITIALIZED) {
-        ESP_LOGE(TAG, "Source not ready");
-        return false;
-    }
-
-    send_passthrough(ESP_AVRC_PT_CMD_PAUSE, ESP_AVRC_PT_CMD_STATE_PRESSED);
-
-    s_state->status = PAUSED;
-    return true;
-}
-
-
-source_state_t *source_bt_init() {
+void source_bt_init() {
     ESP_LOGI(TAG, "Initializing");
 
     bt_init();
 
-    s_state = create_source_state(SOURCE_BLUETOOTH, BT_BUF_SIZE);
-    if (!s_state->buffer.data) {
-        ESP_LOGE(TAG, "Could not allocate memory for source state");
-        exit(1);
-    }
-
-    s_state->play = &source_bt_play;
-    s_state->pause = &source_bt_pause;
+    ctx = source_create_ctx("BLUETOOTH", SOURCE_BLUETOOTH, BT_BUF_SIZE);
 
     s_bt_task_queue = xQueueCreate(10, sizeof(msg_t));
     xTaskCreate(bt_task, "Bluetooth", 2000, NULL, configMAX_PRIORITIES - 4, s_bt_task_handle);
 
     work_dispatch(bt_hdl_stack_evt, BT_EVT_STACK_UP, NULL, 0);
 
-    s_state->status = INITIALIZED;
+    ctx->status = INITIALIZED;
     ESP_LOGI(TAG, "Initialized");
-
-    return s_state;
 }
 
 
