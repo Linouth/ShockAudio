@@ -133,7 +133,6 @@ static void tone_task(void *arg) {
                 if (++cycle_index >= cycle_len) {
                     cycle_index = 0;
                     cycle_count++;
-                    printf("Cycles: %d\n", cycle_count);
                 }
             }
 
