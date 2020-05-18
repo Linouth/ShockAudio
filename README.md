@@ -3,13 +3,14 @@
 This firmware is used to make a network/bluetooth speaker using an ESP32. Plan is to make a custom PCB as well.
 
 ### Todo
-This Branch
+This Branch:
 - [ ] Test changes made in this new branch
 - [ ] Fix bugs found during testing
 
-General: 
+General:
 - [ ] Sources should write directly to the context buffer, not first write to
-  an intermediate buffer. This will safe quite some memory.
+  an intermediate buffer.
+    - This will safe quite some memory.
 - [ ] Split mixer, so that it only mixes the data, not send it to the renderer.
   Or at least return the data somehow.
     - This is required to stream the data to other sinks as well.

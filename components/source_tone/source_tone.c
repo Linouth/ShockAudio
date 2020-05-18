@@ -117,7 +117,7 @@ static void tone_task(void *arg) {
                 cycle_index = 0;
                 cycle_count = 0;
                 cycles_required = tone->duration/(1000.0/tone->freq);
-                ESP_LOGI(TAG, "Needing %d frames", cycles_required);
+                ESP_LOGI(TAG, "Needing %d cycles", cycles_required);
             }
 
             // While there is free space for a frame,
@@ -136,19 +136,20 @@ static void tone_task(void *arg) {
                 }
             }
 
+            if (data_len > 0) {
+                ctx->buffer.format.bits_per_sample = bits_per_sample;
+                source_write(SOURCE_TONE, data, data_len);
+                /* ESP_LOGD(TAG, "Bytes written to out_buffer: %u", data_len); */
+            }
+
             if (cycle_count >= cycles_required) {
                 ESP_LOGI(TAG, "Tone finished");
                 free(tone);
                 tone = NULL;
                 ctx->status = STOPPED;
             }
-        }
-
-        if (data_len > 0) {
-            ctx->buffer.format.bits_per_sample = bits_per_sample;
-            source_write(SOURCE_TONE, data, data_len);
-            /* ESP_LOGD(TAG, "Bytes written to out_buffer: %u", data_len); */
         } else {
+            // No tone playing
             vTaskDelay(100/portTICK_PERIOD_MS);
         }
     }
