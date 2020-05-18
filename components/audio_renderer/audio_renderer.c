@@ -7,14 +7,16 @@
 static const char* TAG = "Renderer";
 static int i2s_num = 0;
 
+static pcm_format_t fmt;
 
 static void i2s_init(renderer_config_t *config) {
+    fmt = config->pcm_format;
     i2s_num = config->i2s_num;
 
     i2s_config_t i2s_config = {
         .mode = I2S_MODE_MASTER | I2S_MODE_TX,
-        .sample_rate = config->pcm_format.sample_rate,
-        .bits_per_sample = config->pcm_format.bits_per_sample,
+        .sample_rate = fmt.sample_rate,
+        .bits_per_sample = fmt.bits_per_sample,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB, */
         .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB,
@@ -61,12 +63,16 @@ int render_samples(uint8_t *buf, size_t buf_len) {
     return bytes_written;
 }
 
+void renderer_clear_dma() {
+    ESP_LOGI(TAG, "Clearing DMA buffer");
+    i2s_zero_dma_buffer(i2s_num);
+}
+
 void renderer_set_sample_rate(uint32_t sample_rate) {
     ESP_LOGI(TAG, "Setting sample rate to %d", sample_rate);
     i2s_set_sample_rates(i2s_num, sample_rate);
 }
 
-void renderer_clear_dma() {
-    ESP_LOGI(TAG, "Clearing DMA buffer");
-    i2s_zero_dma_buffer(i2s_num);
+pcm_format_t *renderer_get_format() {
+    return &fmt;
 }

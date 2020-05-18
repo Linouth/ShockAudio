@@ -2,6 +2,7 @@
 #include "freertos/task.h"
 #include "freertos/ringbuf.h"
 #include "esp_log.h"
+#include <string.h>
 
 #include "mixer.h"
 #include "source.h"
@@ -134,6 +135,7 @@ static void mixer_task(void *params) {
 
         if (max_bytes_read > 0) {
             render_samples((uint8_t *)out_buf, max_bytes_read);
+            memset(out_buf, 0, max_bytes_read);
             dma_cleared = false;
         } else {
             if (!dma_cleared) {
