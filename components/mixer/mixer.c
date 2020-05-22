@@ -35,7 +35,7 @@ int32_t buffer_to_sample(int offset, uint8_t *arr, size_t bytes, bool big_endian
     return out;
 }
 
-// Write 32-bit integer to data array, handling bytes per sample
+// Write 32-bit integer to data array, handling 'bytes' per sample
 void sample_to_buffer(int32_t sample, int offset, uint8_t *arr, size_t bytes, bool big_endian) {
 
     int i;
@@ -107,8 +107,8 @@ static void mixer_task(void *params) {
             bps = ctx->buffer.format.bits_per_sample;
             bytes_per_sample = bps > 16 ? 4 : bps/8;
 
-            data = (uint8_t*) xRingbufferReceive(ctx->buffer.data, &bytes_read,
-                                                 portMAX_DELAY);
+            data = (uint8_t*) xRingbufferReceiveUpTo(ctx->buffer.data, &bytes_read,
+                                                     portMAX_DELAY, MIXER_BUF_LEN);
             max_bytes_read = (bytes_read > max_bytes_read) ? bytes_read :
                                 max_bytes_read;
 
@@ -116,6 +116,8 @@ static void mixer_task(void *params) {
             // TODO: Implement option for non interleaved PCM (might already work)
             // TODO: Implement big-endian as well
             // TODO: Implement Upsampling
+            // TODO: Write first buffer directly to out_buf instead of adding
+            // TODO: Add support for more and less channels
             channel = 0;
             for (i = 0; i < bytes_read; i += bytes_per_sample) {
                 if (i % 4 == 0)

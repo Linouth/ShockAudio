@@ -2,6 +2,8 @@
 #define SOURCE_H
 
 #include "audio_buffer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #define MAX_SOURCES_NUM 10
 
@@ -14,7 +16,7 @@ typedef enum {
 
 typedef enum {
     UNINITIALIZED,
-    INITIALIZED,
+    WAITING,
     STOPPED,
     PAUSED,
     PLAYING
@@ -25,19 +27,21 @@ typedef struct {
     status_t status;
     buffer_t buffer;
     const char *name;
+    TaskHandle_t handle;
 } source_ctx_t;
 
 
-source_ctx_t *source_create_ctx(const char *source_name, source_t source, size_t buflen);
+source_ctx_t *source_create_ctx(const char *source_name, source_t source,
+                                size_t buflen, TaskHandle_t handle);
 source_ctx_t **source_return_ctxs();
+void source_destroy_ctx(source_ctx_t *ctx);
 
-#define play(source)        source_change_status(source, PLAYING)
-#define pause(source)       source_change_status(source, PAUSED)
-#define stop(source)        source_change_status(source, STOPPED)
-bool source_change_status(source_t source, status_t status);
-status_t source_status(source_t source);
+bool source_play(source_t source);
+bool source_pause(source_t source);
+bool source_stop(source_t source);
 
 void source_write(source_t source, const uint8_t *data, uint32_t len);
-void source_write_wait(source_t source, const uint8_t *data, uint32_t len, TickType_t ticksToWait);
+void source_write_wait(source_t source, const uint8_t *data, uint32_t len,
+                       TickType_t ticksToWait);
 
 #endif

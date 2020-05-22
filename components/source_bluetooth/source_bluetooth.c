@@ -28,7 +28,7 @@ static const char *s_a2d_audio_state_str[] = {"Suspended", "Stopped", "Started"}
 static esp_avrc_rn_evt_cap_mask_t s_peer_capabilities;
 
 static xQueueHandle s_bt_task_queue = NULL;
-static xTaskHandle s_bt_task_handle = NULL;
+static TaskHandle_t s_bt_task_handle = NULL;
 static source_ctx_t *ctx;
 
 
@@ -554,7 +554,7 @@ static void bt_task(void *arg) {
     ESP_LOGD(TAG, "Starting loop");
 
     msg_t msg;
-    for (;;) {
+    while (ctx->status != STOPPED) {
         if (xQueueReceive(s_bt_task_queue, &msg, 100/portTICK_RATE_MS) == pdTRUE) {
             ESP_LOGD(TAG, "%s, sig 0x%x, evt 0x%x", __func__, msg.signal, msg.event);
             switch(msg.signal) {
@@ -574,6 +574,8 @@ static void bt_task(void *arg) {
                 free(msg.param);
         }
     }
+
+    source_destroy_ctx(ctx);
 }
 
 
@@ -582,14 +584,14 @@ void source_bt_init() {
 
     bt_init();
 
-    ctx = source_create_ctx("BLUETOOTH", SOURCE_BLUETOOTH, BT_BUF_SIZE);
+    ctx = source_create_ctx("BLUETOOTH", SOURCE_BLUETOOTH, BT_BUF_SIZE, ctx);
 
     s_bt_task_queue = xQueueCreate(10, sizeof(msg_t));
     xTaskCreate(bt_task, "Bluetooth", 2000, NULL, configMAX_PRIORITIES - 4, s_bt_task_handle);
 
     work_dispatch(bt_hdl_stack_evt, BT_EVT_STACK_UP, NULL, 0);
 
-    ctx->status = INITIALIZED;
+    ctx->status = WAITING;
     ESP_LOGI(TAG, "Initialized");
 }
 

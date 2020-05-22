@@ -1,9 +1,11 @@
 #include "source.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 
 static const char *status_names[] = {
-    "UNINITIALIZED", "INITIALIZED", "STOPPED", "PAUSED", "PLAYING"
+    "UNINITIALIZED", "WAITING", "STOPPED", "PAUSED", "PLAYING"
 };
 
 static source_ctx_t *source_ctxs[MAX_SOURCES_NUM] = { NULL };
@@ -22,14 +24,17 @@ int source_get_index(int needle) {
     return -1;
 }
 
-source_ctx_t *get_source_ctx(source_t source) {
+source_ctx_t *get_ctx(source_t source) {
     int index = source_get_index(source);
-    if (index < 0)
+    if (index < 0) {
+        ESP_LOGE(TAG, "Source %d does not exist", source);
         return NULL;
+    }
     return source_ctxs[index];
 }
 
-source_ctx_t *source_create_ctx(const char *source_name, source_t source, size_t buflen) {
+source_ctx_t *source_create_ctx(const char *source_name, source_t source,
+                                size_t buflen, TaskHandle_t handle) {
     if (source_counter >= MAX_SOURCES_NUM) {
         ESP_LOGE(TAG, "Max number of sources reached: %d", source_counter);
         return NULL;
@@ -54,6 +59,7 @@ source_ctx_t *source_create_ctx(const char *source_name, source_t source, size_t
     }
 
     ctx->name = source_name;
+    ctx->handle = handle;
 
     source_counter++;
     return ctx;
@@ -63,13 +69,19 @@ source_ctx_t **source_return_ctxs() {
     return source_ctxs;
 }
 
-bool source_change_status(source_t source, status_t status) {
-    source_ctx_t *ctx = get_source_ctx(source);
-    if (!ctx) {
-        ESP_LOGE(TAG, "Source %d does not exist", source);
+void source_destroy_ctx(source_ctx_t *ctx) {
+    vRingbufferDelete(ctx->buffer.data);
+    // TODO: Is this going to work?
+    // deleting the task in the task that is being deleted
+    vTaskDelete(ctx->handle);
+    free(ctx);
+}
+
+bool set_status(source_t source, status_t status) {
+    source_ctx_t *ctx = get_ctx(source);
+    if (!ctx)
         return false;
-    }
-    if (status != INITIALIZED && ctx->status == UNINITIALIZED) {
+    if (ctx->status == UNINITIALIZED) {
         ESP_LOGD(ctx->name, "Can't change status, ctx still uninitialized");
         return false;
     }
@@ -78,8 +90,34 @@ bool source_change_status(source_t source, status_t status) {
     return true;
 }
 
+bool source_play(source_t source) {
+    if (!set_status(source, WAITING))
+        return false;
+    source_ctx_t *ctx = get_ctx(source);
+    if (!ctx)
+        return false;
+    vTaskResume(ctx->handle);
+    return true;
+}
+
+bool source_pause(source_t source) {
+    if (!set_status(source, PAUSED))
+        return false;
+    source_ctx_t *ctx = get_ctx(source);
+    if (!ctx)
+        return false;
+    vTaskSuspend(ctx->handle);
+    return true;
+}
+
+bool source_stop(source_t source) {
+    if (!set_status(source, STOPPED))
+        return false;
+    return true;
+}
+
 status_t source_status(source_t source) {
-    source_ctx_t *ctx = get_source_ctx(source);
+    source_ctx_t *ctx = get_ctx(source);
     if (!ctx) {
         ESP_LOGE(TAG, "Source %d does not exist", source);
         return -1;
@@ -88,7 +126,7 @@ status_t source_status(source_t source) {
 }
 
 void source_write_wait(source_t source, const uint8_t *data, uint32_t len, TickType_t ticksToWait) {
-    source_ctx_t *ctx = get_source_ctx(source);
+    source_ctx_t *ctx = get_ctx(source);
     ESP_LOGV(ctx->name, "Writing %d bytes to buffer", len);
 
     xRingbufferSend(ctx->buffer.data, data, len, ticksToWait);

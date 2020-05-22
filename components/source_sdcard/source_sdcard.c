@@ -18,7 +18,7 @@ static const char* TAG = "SDCard";
 #define PIN_NUM_CLK  14
 #define PIN_NUM_CS   13
 
-static xTaskHandle s_sd_task_handle = NULL;
+static TaskHandle_t s_sd_task_handle = NULL;
 static source_ctx_t *ctx = NULL;
 
 FILE* fd;
@@ -82,29 +82,33 @@ static void read_wav_header(uint8_t *data) {
 }
 
 // TODO: Check filetype
-// TODO: Read in PCM data from wav file
 static void sd_task(void *arg) {
     uint8_t *data = calloc(SDREAD_BUF_SIZE, sizeof(char));
     size_t bytes_read;
 
     ESP_LOGD(TAG, "Starting SD loop");
-    for (;;) {
+    while (ctx->status != STOPPED) {
 
         // Wait if not running
         // TODO: This can probaly be cone with an interrupt
-        if (source_status(SOURCE_SDCARD) != PLAYING) {
+        if (ctx->status == PAUSED) {
+            ESP_LOGD(TAG, "Paused but running? Pausing task");
+            source_pause(SOURCE_SDCARD);
             vTaskDelay(100/portTICK_PERIOD_MS);
             continue;
         }
 
         if (!fd_OK) {
             ESP_LOGD(TAG, "No file selected");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            source_pause(SOURCE_SDCARD);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
             continue;
         }
 
         if (new_file) {
             fread(data, sizeof(char), 44, fd);
+            // TODO: Support more codec, and make this more robust
+            // (Crashes if not a wav file)
             read_wav_header(data);
             new_file = false;
         }
@@ -113,8 +117,7 @@ static void sd_task(void *arg) {
             ESP_LOGD(TAG, "At end of file");
             fclose(fd);
             fd_OK = 0;
-            /* s_state->status = STOPPED; */
-            stop(SOURCE_SDCARD);
+            ctx->status = PAUSED;
         }
 
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
@@ -123,16 +126,16 @@ static void sd_task(void *arg) {
         ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_read);
     }
 
-    // TODO: This will never run
     free(data);
     sd_close();
+    source_destroy_ctx(ctx);
 }
 
 int source_sdcard_play_file(char* filename) {
-    /* if (s_state->status == UNINITIALIZED) { */
-    /*     ESP_LOGE(TAG, "Can't play file, still uninitialized"); */
-    /*     return -1; */
-    /* } */
+    if (ctx->status == UNINITIALIZED) {
+        ESP_LOGE(TAG, "Can't play file, still uninitialized");
+        return -1;
+    }
 
     if (fd_OK) {
         // Properly close fd if available
@@ -146,6 +149,7 @@ int source_sdcard_play_file(char* filename) {
         return -1;
     fd_OK = 1;
     new_file = true;
+    source_play(SOURCE_SDCARD);
     return 0;
 }
 
@@ -155,7 +159,7 @@ void source_sdcard_init() {
     while(sd_init() != 0)
         vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    ctx = source_create_ctx("SDCARD", SOURCE_SDCARD, 4096);
+    ctx = source_create_ctx("SDCARD", SOURCE_SDCARD, 4096, ctx);
 
     // TODO: Do this in task loop for every file
     ctx->buffer.format.sample_rate = 44100;
@@ -165,6 +169,6 @@ void source_sdcard_init() {
 
     xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
 
-    ctx->status = INITIALIZED;
+    ctx->status = WAITING;
     ESP_LOGI(TAG, "Initialized");
 }

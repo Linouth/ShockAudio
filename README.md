@@ -17,7 +17,8 @@ General:
 - [ ] Think about how the sources are interacting with their context
     - Directly or through helper functions? 
     - Now it's a mix of both and it's a mess.
-- [ ] Add some better status management (Playing, paused, stopped, etc.)
+- [x] Add some better status management (Playing, paused, stopped, etc.)
+    - *Not tested yet*
     - Pausing a source should preferably pause the task itself.
     - Maybe add a 'Waiting' status instead of 'stopped'.
     - When setting status to 'stopped' the task should stop. To start it again,

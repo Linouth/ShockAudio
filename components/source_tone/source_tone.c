@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/portmacro.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "math.h"
@@ -42,7 +41,7 @@ const size_t sin_lut_len = sizeof(sin_lut) / sizeof(sin_lut[0]);
 
 static const char* TAG = "Tone";
 
-static xTaskHandle s_tone_task_handle = NULL;
+static TaskHandle_t s_tone_task_handle = NULL;
 static xQueueHandle s_tone_queue = NULL;
 
 static source_ctx_t *ctx;
@@ -93,16 +92,19 @@ static void tone_task(void *arg) {
     pcm_format_t *fmt = renderer_get_format();
 
     unsigned int i;
-    for (;;) {
+    while (ctx->status != STOPPED) {
         // Wait if not running
-        // TODO: This can probaly be cone with an interrupt
+        // TODO: This can probaly be done with an interrupt
+        /* I think this is now working with suspending the task?
+         * TODO: Test this.
         if (ctx->status == PAUSED) {
             vTaskDelay(100/portTICK_PERIOD_MS);
             continue;
-        }
+        } */
 
 
-        if (tone || xQueueReceive(s_tone_queue, &tone, portMAX_DELAY)) {
+        if (WAITING &&
+                (tone || xQueueReceive(s_tone_queue, &tone, portMAX_DELAY))) {
             // Tone available
             data_len = 0;
 
@@ -150,12 +152,13 @@ static void tone_task(void *arg) {
             }
         } else {
             // No tone playing
+            source_pause(SOURCE_TONE);
             vTaskDelay(100/portTICK_PERIOD_MS);
         }
     }
 
-    // TODO: This will never run
     free(data);
+    source_destroy_ctx(ctx);
 }
 
 // Duration in ms
@@ -173,12 +176,14 @@ void source_tone_play_tone(uint16_t freq, uint16_t duration) {
     if (xQueueSendToBack(s_tone_queue, &tone, 10) != pdPASS) {
         ESP_LOGE(TAG, "Queue is full!");
     }
+
+    source_play(SOURCE_TONE);
 }
 
 void source_tone_init() {
     ESP_LOGI(TAG, "Initializing");
 
-    ctx = source_create_ctx("TONE", SOURCE_TONE, TONE_BUF_SIZE);
+    ctx = source_create_ctx("TONE", SOURCE_TONE, TONE_BUF_SIZE, s_tone_task_handle);
 
     xTaskCreate(tone_task, "Tone", 1750, NULL, configMAX_PRIORITIES - 4, s_tone_task_handle);
 
@@ -186,6 +191,6 @@ void source_tone_init() {
     if (!s_tone_queue)
         ESP_LOGE(TAG, "Could not create queue");
 
-    ctx->status = INITIALIZED;
+    ctx->status = WAITING;
     ESP_LOGI(TAG, "Initialized");
 }
