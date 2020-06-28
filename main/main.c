@@ -47,15 +47,18 @@ esp_err_t app_main(void) {
 
 #ifdef ENABLE_TONE
     source_tone_init();
-
-    vTaskDelay(15000/portTICK_PERIOD_MS);
-    source_tone_play_tone(440, 10000);
 #endif
 
     // Mixer takes data directly from the source ctxs list, and sends it to the
     // renderer.
     // TODO: Split this, so that the final data is available to other components.
     mixer_init();
+
+    vTaskDelay(5000/portTICK_PERIOD_MS);
+    source_tone_play_tone(55, 250);
+    source_tone_play_tone(110, 250);
+    source_tone_play_tone(220, 250);
+    source_tone_play_tone(440, 1000);
 
     /*
     for (int i = 0; i < states_len; i++) {

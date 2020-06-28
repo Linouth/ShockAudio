@@ -27,12 +27,12 @@ typedef struct {
     status_t status;
     buffer_t buffer;
     const char *name;
-    TaskHandle_t handle;
+    TaskHandle_t *handle;
 } source_ctx_t;
 
 
 source_ctx_t *source_create_ctx(const char *source_name, source_t source,
-                                size_t buflen, TaskHandle_t handle);
+                                size_t buflen, TaskHandle_t *handle);
 source_ctx_t **source_return_ctxs();
 void source_destroy_ctx(source_ctx_t *ctx);
 

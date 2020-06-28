@@ -8,17 +8,18 @@ static const char *status_names[] = {
     "UNINITIALIZED", "WAITING", "STOPPED", "PAUSED", "PLAYING"
 };
 
-static source_ctx_t *source_ctxs[MAX_SOURCES_NUM] = { NULL };
-static int source_ctxs_lut[MAX_SOURCES_NUM];
+static source_ctx_t *source_ctxs[MAX_SOURCES_NUM + 1] = { NULL };
 static int source_counter = 0;
 
 static const char *TAG = "Source";
 
-int source_get_index(int needle) {
-    for (int i = 0, e = source_ctxs_lut[i];
+int source_get_index(source_t needle) {
+    int i = 0;
+    source_ctx_t *ctx;
+    for (i = 0, ctx = source_ctxs[i];
             i < MAX_SOURCES_NUM && i < source_counter;
-            e = source_ctxs_lut[++i]) {
-        if (e == needle)
+            ctx = source_ctxs[++i]){
+        if (ctx->source == needle)
             return i;
     }
     return -1;
@@ -34,7 +35,7 @@ source_ctx_t *get_ctx(source_t source) {
 }
 
 source_ctx_t *source_create_ctx(const char *source_name, source_t source,
-                                size_t buflen, TaskHandle_t handle) {
+                                size_t buflen, TaskHandle_t *handle) {
     if (source_counter >= MAX_SOURCES_NUM) {
         ESP_LOGE(TAG, "Max number of sources reached: %d", source_counter);
         return NULL;
@@ -46,15 +47,18 @@ source_ctx_t *source_create_ctx(const char *source_name, source_t source,
         return NULL;
     }        
 
+    source_ctxs[source_counter] = calloc(1, sizeof(source_ctx_t));
     source_ctx_t *ctx = source_ctxs[source_counter];
-    ctx = calloc(1, sizeof(source_ctx_t));
-    if (!ctx)
+    if (!ctx) {
+        ESP_LOGE(TAG, "Could not allocate memory for source context %s",
+                source_name);
         return NULL;
+    }
     ctx->source = source;
     ctx->status = UNINITIALIZED;
     ctx->buffer.data = xRingbufferCreate(buflen, RINGBUF_TYPE_BYTEBUF);
     if (!ctx->buffer.data) {
-        ESP_LOGE(TAG, "%s: Could not allocate memory for source state", source_name);
+        ESP_LOGE(TAG, "%s: Could not allocate memory for source buffer", source_name);
         exit(1);
     }
 
@@ -71,7 +75,8 @@ source_ctx_t **source_return_ctxs() {
 
 void source_destroy_ctx(source_ctx_t *ctx) {
     vRingbufferDelete(ctx->buffer.data);
-    // TODO: Is this going to work?
+    // Is this going to work? Answer: No.
+    // TODO: Fix this
     // deleting the task in the task that is being deleted
     vTaskDelete(ctx->handle);
     free(ctx);
@@ -96,7 +101,7 @@ bool source_play(source_t source) {
     source_ctx_t *ctx = get_ctx(source);
     if (!ctx)
         return false;
-    vTaskResume(ctx->handle);
+    vTaskResume(*ctx->handle);
     return true;
 }
 
@@ -106,7 +111,7 @@ bool source_pause(source_t source) {
     source_ctx_t *ctx = get_ctx(source);
     if (!ctx)
         return false;
-    vTaskSuspend(ctx->handle);
+    vTaskSuspend(*ctx->handle);
     return true;
 }
 

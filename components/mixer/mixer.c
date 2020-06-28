@@ -81,7 +81,7 @@ static void mixer_task(void *params) {
 
     int32_t sampleI, sampleO;
     uint8_t channel;  // 0 = left, 1 = right
-    int sources;  // Might be needed for normalization
+    int sources, source_count;  // Might be needed for normalization
     int i;
     for (;;) { 
         max_sample_rate = 0;
@@ -101,14 +101,17 @@ static void mixer_task(void *params) {
             }
         }
 
-        for (ctx = *ctxs; ctx != NULL; ctx++) {
-            if (ctx->status != PLAYING)
+        /* for (ctx = *ctxs; ctx != NULL; ctx++) { */
+        source_count = 0;
+        while((ctx = ctxs[source_count++]) != NULL) {
+            if (ctx->status != PLAYING) {
                 continue;
+            }
             bps = ctx->buffer.format.bits_per_sample;
             bytes_per_sample = bps > 16 ? 4 : bps/8;
 
-            data = (uint8_t*) xRingbufferReceiveUpTo(ctx->buffer.data, &bytes_read,
-                                                     portMAX_DELAY, MIXER_BUF_LEN);
+            data = (uint8_t*) xRingbufferReceiveUpTo(ctx->buffer.data,
+                    &bytes_read, portMAX_DELAY, MIXER_BUF_LEN);
             max_bytes_read = (bytes_read > max_bytes_read) ? bytes_read :
                                 max_bytes_read;
 
@@ -129,6 +132,8 @@ static void mixer_task(void *params) {
 
                 // Add them and return new sample to output buffer
                 sampleO += sampleI;
+                // TODO: Hacky volume change:
+                sampleO >>= 7;
                 sample_to_buffer(sampleO, i, out_buf, max_bytes_per_sample, false);
             }
 
@@ -145,6 +150,9 @@ static void mixer_task(void *params) {
                 dma_cleared = true;
             }
             // TODO: See if this can be done better, instead of delaying every time nothing has been done
+            // Idea: Suspend task when nohting has to be done, and make a
+            // 'source_play' call resume the mixer as well
+            // (If it is suspended).
             vTaskDelay(pdMS_TO_TICKS(20));
         }
     }
@@ -155,7 +163,10 @@ static void mixer_task(void *params) {
 
 void mixer_init() {
     ESP_LOGI(TAG, "Initializing");
+    esp_log_level_set(TAG, 3);
 
     ctxs = source_return_ctxs();
     xTaskCreate(mixer_task, "Mixer", 2048, NULL, configMAX_PRIORITIES-1, s_mixer_task_handle);
+
+    ESP_LOGI(TAG, "Initialized");
 }

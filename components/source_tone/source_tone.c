@@ -46,8 +46,9 @@ static xQueueHandle s_tone_queue = NULL;
 
 static source_ctx_t *ctx;
 
-size_t gen_sin_period(unsigned int Fs, unsigned int f, uint8_t *buf, size_t buf_len) {
-    const unsigned int s = Fs / f;
+size_t gen_sin_period(unsigned int Fs, unsigned int f, uint8_t *buf,
+        size_t buf_len) {
+    const unsigned int s = Fs / f;  // Samples
     const float m = (float)s / sin_lut_len;
 
     if (s > buf_len)
@@ -56,8 +57,11 @@ size_t gen_sin_period(unsigned int Fs, unsigned int f, uint8_t *buf, size_t buf_
     int i,
         ind = 0;
     float ratio;
+
+    // Loop over each spot that need to be filled
+    // NOTE: Only works for N > FS/f or m <= 1.0
     for (i = 0; i < s && i < buf_len; i++) {
-        buf[i] = sin_lut[ind];
+        buf[i] = sin_lut[ind] + 128;
         ratio = (float)(i+1)/(ind+1);
 
         if (m <= 1) {
@@ -69,7 +73,7 @@ size_t gen_sin_period(unsigned int Fs, unsigned int f, uint8_t *buf, size_t buf_
         } else {
             // N < Fs//f
             if (ratio >= m)
-                ind++;
+                ind += 1;
         }
     }
 
@@ -92,6 +96,8 @@ static void tone_task(void *arg) {
     pcm_format_t *fmt = renderer_get_format();
 
     unsigned int i;
+
+    vTaskSuspend(NULL);
     while (ctx->status != STOPPED) {
         // Wait if not running
         // TODO: This can probaly be done with an interrupt
@@ -148,7 +154,8 @@ static void tone_task(void *arg) {
                 ESP_LOGI(TAG, "Tone finished");
                 free(tone);
                 tone = NULL;
-                ctx->status = STOPPED;
+                cycle_len = 0;
+                ctx->status = WAITING;
             }
         } else {
             // No tone playing
@@ -177,20 +184,23 @@ void source_tone_play_tone(uint16_t freq, uint16_t duration) {
         ESP_LOGE(TAG, "Queue is full!");
     }
 
-    source_play(SOURCE_TONE);
+    if (ctx->status != PLAYING)
+        source_play(SOURCE_TONE);
 }
 
 void source_tone_init() {
     ESP_LOGI(TAG, "Initializing");
 
-    ctx = source_create_ctx("TONE", SOURCE_TONE, TONE_BUF_SIZE, s_tone_task_handle);
-
-    xTaskCreate(tone_task, "Tone", 1750, NULL, configMAX_PRIORITIES - 4, s_tone_task_handle);
+    ctx = source_create_ctx("TONE", SOURCE_TONE, TONE_BUF_SIZE,
+            &s_tone_task_handle);
+    
+    xTaskCreate(tone_task, "Tone", 1750, NULL, configMAX_PRIORITIES - 4,
+            &s_tone_task_handle);
 
     s_tone_queue = xQueueCreate(10, sizeof(tone_t *));
     if (!s_tone_queue)
         ESP_LOGE(TAG, "Could not create queue");
 
-    ctx->status = WAITING;
+    ctx->status = PAUSED;
     ESP_LOGI(TAG, "Initialized");
 }
