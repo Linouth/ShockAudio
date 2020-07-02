@@ -5,3 +5,5 @@ compile_commands.json
 .clangd/
 .ipynb_checkpoints/
 tags
+components/**/test/
+.gdb_history

@@ -22,8 +22,9 @@ typedef struct {
 void renderer_init(renderer_config_t *config);
 void renderer_destroy();
 
-int render_samples(int16_t *buf, size_t buf_len);
-void renderer_set_sample_rate(uint32_t sample_rate);
+int render_samples(uint8_t *buf, size_t buf_len);
 void renderer_clear_dma();
+void renderer_set_sample_rate(uint32_t sample_rate);
+pcm_format_t *renderer_get_format();
 
 #endif
