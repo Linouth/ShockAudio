@@ -130,7 +130,8 @@ status_t source_status(source_t source) {
     return ctx->status;
 }
 
-void source_write_wait(source_t source, const uint8_t *data, uint32_t len, TickType_t ticksToWait) {
+void source_write_wait(source_t source, const uint8_t *data, uint32_t len,
+        TickType_t ticksToWait) {
     source_ctx_t *ctx = get_ctx(source);
     ESP_LOGV(ctx->name, "Writing %d bytes to buffer", len);
 

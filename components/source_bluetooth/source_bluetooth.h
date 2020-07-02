@@ -1,10 +1,9 @@
 #ifndef SOURCE_BLUETOOTH_H
 #define SOURCE_BLUETOOTH_H
 
-#include "audio_buffer.h"
-/* #include "audio_source.h" */
+#include <stdint.h>
 
-#define BT_BUF_SIZE 2048*2
+#define BT_BUF_SIZE 2048*4
 
 
 typedef void (* cb_t)(uint16_t event, void *param);
@@ -41,6 +40,6 @@ enum transmission_layer {
  * Assigns play and pause functions to the structure. Also creates task.
  * @return  State structure
  */
-void source_bt_init();
+void source_bluetooth_init();
 
 #endif

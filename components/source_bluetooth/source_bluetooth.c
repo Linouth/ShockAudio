@@ -22,8 +22,10 @@
 static const char* TAG = "Bluetooth";
 
 
-static const char *s_a2d_conn_state_str[] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
-static const char *s_a2d_audio_state_str[] = {"Suspended", "Stopped", "Started"};
+static const char *s_a2d_conn_state_str[] =
+    {"Disconnected", "Connecting","Connected", "Disconnecting"};
+static const char *s_a2d_audio_state_str[] =
+    {"Suspended", "Stopped", "Started"};
 
 static esp_avrc_rn_evt_cap_mask_t s_peer_capabilities;
 
@@ -244,7 +246,7 @@ void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
 
 
 void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
-    /* ESP_LOGD(TAG, "Data received: %d bytes", len); */
+    ESP_LOGV(TAG, "Data received: %d bytes", len);
 
     source_write(SOURCE_BLUETOOTH, data, len);
 }
@@ -386,7 +388,7 @@ void av_notify_evt_handler(esp_avrc_rn_event_ids_t event, esp_avrc_rn_param_t *p
                     ctx->status = PLAYING;
                     break;
                 case ESP_AVRC_PLAYBACK_PAUSED:
-                    ctx->status = PAUSED;
+                    ctx->status = WAITING;
                     break;
                 default:
                     break;
@@ -563,7 +565,8 @@ static void bt_task(void *arg) {
                         msg.cb(msg.event, msg.param);
                     break;
                 case BT_SIG_SEND_PASSTHROUGH:
-                        esp_avrc_ct_send_passthrough_cmd(TL_PASSTHROUGH, msg.event, msg.state);
+                        esp_avrc_ct_send_passthrough_cmd(TL_PASSTHROUGH,
+                                msg.event, msg.state);
                     break;
                 default:
                     ESP_LOGW(TAG, "%s, sig 0x%x unknown", __func__, msg.signal);
@@ -579,15 +582,15 @@ static void bt_task(void *arg) {
 }
 
 
-void source_bt_init() {
+void source_bluetooth_init() {
     ESP_LOGI(TAG, "Initializing");
 
     bt_init();
 
-    ctx = source_create_ctx("BLUETOOTH", SOURCE_BLUETOOTH, BT_BUF_SIZE, ctx);
+    ctx = source_create_ctx("BLUETOOTH", SOURCE_BLUETOOTH, BT_BUF_SIZE, &s_bt_task_handle);
+    xTaskCreate(bt_task, "Bluetooth", 2000, NULL, configMAX_PRIORITIES - 4, &s_bt_task_handle);
 
     s_bt_task_queue = xQueueCreate(10, sizeof(msg_t));
-    xTaskCreate(bt_task, "Bluetooth", 2000, NULL, configMAX_PRIORITIES - 4, s_bt_task_handle);
 
     work_dispatch(bt_hdl_stack_evt, BT_EVT_STACK_UP, NULL, 0);
 

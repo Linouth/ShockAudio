@@ -26,24 +26,43 @@ int fd_OK = 0;
 bool new_file = false;
 
 static int sd_init() {
+    esp_err_t ret;
+    sdmmc_card_t* card;
+
+    // Reset 'file_read' flag
     fd_OK = 0;
 
-    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
-    slot_config.gpio_miso = PIN_NUM_MISO;
-    slot_config.gpio_mosi = PIN_NUM_MOSI;
-    slot_config.gpio_sck  = PIN_NUM_CLK;
-    slot_config.gpio_cs   = PIN_NUM_CS;
-
+    // Config options for mounting filesystem
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
         .max_files = 5,
         .allocation_unit_size = 16 * 1024
     };
 
-    sdmmc_card_t* card;
+    // Configure SPI bus
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    spi_bus_config_t bus_cfg = {
+        .mosi_io_num = PIN_NUM_MOSI,
+        .miso_io_num = PIN_NUM_MISO,
+        .sclk_io_num = PIN_NUM_CLK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 8128,
+    };
+    ret = spi_bus_initialize(host.slot, &bus_cfg, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize bus.");
+        /* return -1; */
+    }
 
-    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+    // Configure SD SPI device
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs = PIN_NUM_CS;
+    slot_config.host_id = host.slot;
+
+    // Mount sdcard
+    ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config,
+            &mount_config, &card);
 
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
@@ -86,35 +105,36 @@ static void sd_task(void *arg) {
     uint8_t *data = calloc(SDREAD_BUF_SIZE, sizeof(char));
     size_t bytes_read;
 
+    // TODO: This is temp
+    esp_log_level_set("spi_master", ESP_LOG_INFO);
+    esp_log_level_set("Renderer", ESP_LOG_INFO);
+    esp_log_level_set("I2S", ESP_LOG_INFO);
+
     ESP_LOGD(TAG, "Starting SD loop");
     while (ctx->status != STOPPED) {
 
-        // Wait if not running
-        // TODO: This can probaly be cone with an interrupt
         if (ctx->status == PAUSED) {
             ESP_LOGD(TAG, "Paused but running? Pausing task");
             source_pause(SOURCE_SDCARD);
-            vTaskDelay(100/portTICK_PERIOD_MS);
             continue;
         }
 
         if (!fd_OK) {
             ESP_LOGD(TAG, "No file selected");
-            source_pause(SOURCE_SDCARD);
-            vTaskDelay(100 / portTICK_PERIOD_MS);
+            ctx->status = PAUSED;
             continue;
         }
 
-        if (new_file) {
+        if (ctx->status != PLAYING) {
+            ctx->status = PLAYING;
             fread(data, sizeof(char), 44, fd);
             // TODO: Support more codec, and make this more robust
             // (Crashes if not a wav file)
             read_wav_header(data);
-            new_file = false;
         }
         bytes_read = fread(data, sizeof(char), SDREAD_BUF_SIZE, fd);
         if (bytes_read < SDREAD_BUF_SIZE) {
-            ESP_LOGD(TAG, "At end of file");
+            ESP_LOGI(TAG, "At end of file");
             fclose(fd);
             fd_OK = 0;
             ctx->status = PAUSED;
@@ -123,7 +143,6 @@ static void sd_task(void *arg) {
         /* ESP_LOGD(TAG, "Wrinting %u bytes to ringbuffer", bytes_read); */
         /* bytes_written = audio_write_ringbuf(data, bytes_read, SOURCE_SDCARD); */
         source_write(SOURCE_SDCARD, data, bytes_read);
-        ESP_LOGD(TAG, "Bytes written to out_buffer: %u", bytes_read);
     }
 
     free(data);
@@ -148,7 +167,7 @@ int source_sdcard_play_file(char* filename) {
     if (!fd)
         return -1;
     fd_OK = 1;
-    new_file = true;
+    /* new_file = true; */
     source_play(SOURCE_SDCARD);
     return 0;
 }
@@ -159,16 +178,13 @@ void source_sdcard_init() {
     while(sd_init() != 0)
         vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    ctx = source_create_ctx("SDCARD", SOURCE_SDCARD, 4096, ctx);
 
-    // TODO: Do this in task loop for every file
-    ctx->buffer.format.sample_rate = 44100;
-    ctx->buffer.format.bits_per_sample = 16;
-    ctx->buffer.format.channels = 2;
+    ctx = source_create_ctx("SDCARD", SOURCE_SDCARD, SDREAD_BUF_SIZE,
+            &s_sd_task_handle);
 
+    xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4,
+            &s_sd_task_handle);
 
-    xTaskCreate(sd_task, "SDCard", 2048, NULL, configMAX_PRIORITIES - 4, s_sd_task_handle);
-
-    ctx->status = WAITING;
+    ctx->status = PAUSED;
     ESP_LOGI(TAG, "Initialized");
 }

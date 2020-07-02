@@ -69,7 +69,7 @@ static void mixer_task(void *params) {
     uint16_t sr,
              max_sample_rate;
     i2s_bits_per_sample_t bps,
-                          max_bits_per_sample;
+    max_bits_per_sample;
 
     size_t bytes_per_sample,
            max_bytes_per_sample;
@@ -91,7 +91,7 @@ static void mixer_task(void *params) {
 
         // Find the highest sample- and bitrate
         sources = 0;
-        while ((ctx = ctxs[sources++]) && ctx != NULL) {
+        while ((ctx = ctxs[sources++]) != NULL) {
             sr = ctx->buffer.format.sample_rate;
             bps = ctx->buffer.format.bits_per_sample;
             max_sample_rate = sr > max_sample_rate ? sr : max_sample_rate;
@@ -101,7 +101,6 @@ static void mixer_task(void *params) {
             }
         }
 
-        /* for (ctx = *ctxs; ctx != NULL; ctx++) { */
         source_count = 0;
         while((ctx = ctxs[source_count++]) != NULL) {
             if (ctx->status != PLAYING) {
@@ -133,7 +132,7 @@ static void mixer_task(void *params) {
                 // Add them and return new sample to output buffer
                 sampleO += sampleI;
                 // TODO: Hacky volume change:
-                sampleO >>= 7;
+                // sampleO >>= 2;
                 sample_to_buffer(sampleO, i, out_buf, max_bytes_per_sample, false);
             }
 

@@ -54,11 +54,13 @@ esp_err_t app_main(void) {
     // TODO: Split this, so that the final data is available to other components.
     mixer_init();
 
+#ifdef ENABLE_TONE
     vTaskDelay(5000/portTICK_PERIOD_MS);
     source_tone_play_tone(55, 250);
     source_tone_play_tone(110, 250);
     source_tone_play_tone(220, 250);
     source_tone_play_tone(440, 1000);
+#endif
 
     /*
     for (int i = 0; i < states_len; i++) {
