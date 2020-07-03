@@ -16,7 +16,7 @@
 static const char TAG[] = "AEL";
 
 
-static esp_err_t audio_element_msg_handler(audio_element_t *el, msg_t *msg) {
+esp_err_t audio_element_msg_handler(audio_element_t *el, msg_t *msg) {
     ESP_LOGD(TAG, "[%s] msg received: %d, data_len: %d", el->tag, msg->id,
             msg->data_len);
 
@@ -45,6 +45,9 @@ esp_err_t audio_element_msg_send(audio_element_t *el, msg_t *msg) {
 
 
 void audio_element_destory(audio_element_t *el) {
+    if (el->destroy)
+        el->destroy(el);
+
     free(el->buf);
 
     if (el->input.type == IO_TYPE_RB && el->input.data.rb)

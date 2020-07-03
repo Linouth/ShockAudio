@@ -6,7 +6,15 @@
 #include "freertos/task.h"
 #include "freertos/ringbuf.h"
 
+#define MAX_RING_BUFFERS 8;
+
 typedef struct audio_element audio_element_t;
+
+typedef enum {
+    AEL_STREAM_NONE,
+    AEL_STREAM_READER,
+    AEL_STREAM_WRITER
+} audio_stream_type_t;
 
 typedef enum {
     AEL_MSG_STOP,
@@ -22,13 +30,14 @@ typedef struct {
 typedef esp_err_t (*el_msg_cb)(audio_element_t*, msg_t*);
 
 typedef esp_err_t (*el_io_cb)(audio_element_t*);
-typedef esp_err_t (*el_process_cb)(audio_element_t*);
+/* typedef esp_err_t (*el_process_cb)(audio_element_t*); */
 typedef size_t (*el_stream_cb)(audio_element_t*, char*, size_t);
 
 enum io_type {
     IO_TYPE_NULL,
+    IO_TYPE_CB,
     IO_TYPE_RB,
-    IO_TYPE_CB
+    IO_TYPE_RB_MULTI,
 };
 
 /**
@@ -38,7 +47,7 @@ typedef struct audio_element_cfg {
     el_io_cb        open;
     el_io_cb        close;
     el_io_cb        destroy;
-    el_process_cb   process;
+    el_io_cb        process;
     el_stream_cb    read;           // optional
     el_stream_cb    write;          // optional
     el_msg_cb       msg_handler;    // optional
@@ -80,12 +89,13 @@ typedef struct audio_element_info {
 }
 
 /**
- * Holds IO ringbuffer or callback function for audio element
+ * Holds IO ringbuffer(s) or callback function for audio element
  */
 struct io {
     enum io_type type;
     union {
         RingbufHandle_t rb;
+        RingbufHandle_t rbs[MAX_RING_BUFFERS];
         el_stream_cb func;
     } data;
     bool ready;
@@ -99,7 +109,7 @@ struct audio_element {
     el_io_cb        open;
     el_io_cb        close;
     el_io_cb        destroy;
-    el_process_cb   process;
+    el_io_cb        process;
     el_msg_cb       msg_handler;
     /* esp_err_t (*seek)(); */
 
