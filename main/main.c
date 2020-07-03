@@ -1,80 +1,37 @@
-#include "audio_renderer.h"
-#include "source.h"
-#include "source_sdcard.h"
-#include "source_tone.h"
-#include "source_bluetooth.h"
-#include "pcm.h"
-#include "mixer.h"
+#include "audio_element.h"
 
-#include "config.h"
+#include "esp_err.h"
+#include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/ringbuf.h"
-#include "esp_err.h"
-#include "esp_log.h"
-#include "driver/i2s.h"
 
-static const char* TAG = "Main";
+static const char TAG[] = "MAIN";
+
+
+
+esp_err_t _process(audio_element_t *self) {
+    ESP_LOGI(TAG, "[%s] Processing!", self->tag);
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    return ESP_OK;
+}
+
 
 esp_err_t app_main(void) {
-    renderer_config_t renderer_config = {
-        .pcm_format = {
-            .sample_rate = 44100,
-            .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-            .channels = 2
-        },
-        .i2s_num = 0,
-        .pin_config = {
-            .bck_io_num = 26,
-            .ws_io_num = 25,
-            .data_out_num = 22,
-            .data_in_num = I2S_PIN_NO_CHANGE
-        }
-    };
+    audio_element_cfg_t cfg = DEFAULT_AUDIO_ELEMENT_CFG();
+    cfg.process = _process;
+    cfg.tag = "Test";
 
-    renderer_init(&renderer_config);
+    audio_element_t *el = audio_element_init(&cfg);
 
-#ifdef ENABLE_SDCARD
-    source_sdcard_init();
-    source_sdcard_play_file("/sdcard/strobe.wav");
-    /* source_sdcard_play_file("/sdcard/test.wav"); */
-#endif
+    vTaskDelay(pdMS_TO_TICKS(5000));
 
-#ifdef ENABLE_BLUETOOTH
-    source_bluetooth_init();
-#endif
+    msg_t msg = { 0 };
+    msg.id = AEL_MSG_STOP;
 
-#ifdef ENABLE_TONE
-    source_tone_init();
-#endif
+    audio_element_msg_send(el, &msg);
 
-    // Mixer takes data directly from the source ctxs list, and sends it to the
-    // renderer.
-    // TODO: Split this, so that the final data is available to other components.
-    mixer_init();
-
-#ifdef ENABLE_TONE
-    vTaskDelay(5000/portTICK_PERIOD_MS);
-    source_tone_play_tone(55, 250);
-    source_tone_play_tone(110, 250);
-    source_tone_play_tone(220, 250);
-    source_tone_play_tone(440, 1000);
-#endif
-
-    /*
-    for (int i = 0; i < states_len; i++) {
-        states[i]->play();
-    }
-    */
-
-    /**
-     * Is going to be used for things like a webserver / syncing other nodes
-     * Maybe.
-     */
-    for (;;) {
-            vTaskDelay(pdMS_TO_TICKS(10000));
-    }
 
     return 0;
 }
