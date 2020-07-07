@@ -10,19 +10,49 @@
 #include "freertos/task.h"
 #include "freertos/ringbuf.h"
 
-#define DEFAULT_TICKS_TO_WAIT portMAX_DELAY
+#define DEFAULT_TICKS_TO_WAIT pdMS_TO_TICKS(500)
 #define DEFAULT_MSG_QUEUE_LENGTH 16
+
+enum notification_bit {
+    AEL_BIT_MSG            = 1,
+    AEL_BIT_STATUS_CHANGED = 2,  // Set but unused for now
+};
+
+
+const char *audio_element_status_str[] = {
+    "PLAYING", "PAUSED", "WAITING", "STOPPED"
+};
 
 static const char TAG[] = "AEL";
 
 
-esp_err_t audio_element_msg_handler(audio_element_t *el, msg_t *msg) {
+audio_element_msg_t audio_element_msg_create(audio_element_msg_id_t id,
+        size_t size) {
+    audio_element_msg_t msg = { 0 };
+    msg.id = id;
+    msg.data_len = size;
+    if (size > 0)
+        msg.data = malloc(size);
+
+    return msg;
+}
+
+esp_err_t audio_element_msg_handler(audio_element_t *el,
+        audio_element_msg_t *msg) {
     ESP_LOGD(TAG, "[%s] msg received: %d, data_len: %d", el->tag, msg->id,
             msg->data_len);
 
     switch(msg->id) {
+        case AEL_MSG_STATUS_CHANGE:
+            // Change the AEL status
+            el->status = (audio_element_status_t)*msg->data;
+            audio_element_notify(el, AEL_BIT_STATUS_CHANGED);
+            ESP_LOGI(TAG, "[%s] Changing status to %s", el->tag,
+                    audio_element_status_str[el->status]);
+            break;
         case AEL_MSG_STOP:
             ESP_LOGI(TAG, "[%s] Stopping audio element.", el->tag);
+            el->status = AEL_STATUS_STOPPED;
             el->task_running = false;
             break;
         default:
@@ -33,18 +63,7 @@ esp_err_t audio_element_msg_handler(audio_element_t *el, msg_t *msg) {
 }
 
 
-esp_err_t audio_element_msg_send(audio_element_t *el, msg_t *msg) {
-    ESP_LOGD(TAG, "[%s] Sending message %d", el->tag, msg->id);
-    if (xQueueSendToBack(el->msg_queue, msg, DEFAULT_TICKS_TO_WAIT) !=
-            pdTRUE) {
-        ESP_LOGE(TAG, "[%s] Message queue fulL!", el->tag);
-        return ESP_FAIL;
-    }
-    return ESP_OK;
-}
-
-
-void audio_element_destory(audio_element_t *el) {
+static void audio_element_destory(audio_element_t *el) {
     if (el->destroy)
         el->destroy(el);
 
@@ -62,26 +81,90 @@ void audio_element_destory(audio_element_t *el) {
 }
 
 
+esp_err_t audio_element_status_set(
+        audio_element_t *el, audio_element_status_t status) {
+
+    if (el->status == status) {
+        ESP_LOGE(TAG, "[%s] AEL already has status %s", el->tag,
+                audio_element_status_str[status]);
+        return ESP_FAIL;
+    }
+
+    // Create msg struct
+    audio_element_msg_t msg = audio_element_msg_create(
+            AEL_MSG_STATUS_CHANGE, sizeof(audio_element_status_t));
+    *msg.data = status;
+
+    // Send message
+    return audio_element_msg_send(el, &msg);
+}
+
+
 void audio_element_task(void *pv) {
     audio_element_t *el = (audio_element_t*) pv;
-    msg_t msg;
-    esp_err_t err;
+    audio_element_msg_t msg;
+    int process_res;
+    BaseType_t notify_res;
+    uint32_t notification = 0;
+
+    TickType_t maxBlockTime = pdMS_TO_TICKS(200);
 
     el->task_running = true;
     while (el->task_running) {
-        if ((xQueueReceive(el->msg_queue, &msg, 0)) == pdTRUE) {
-            // Message received!
-            
-            // Handle message
-            el->msg_handler(el, &msg);
+
+        if (el->wait_for_notify) {
+            notify_res = xTaskNotifyWait(pdFALSE, ULONG_MAX, &notification,
+                    portMAX_DELAY);
+
+            if (notify_res == pdTRUE) {
+                ESP_LOGD(TAG, "[%s] Notification received! 0x%x", el->tag,
+                        notification);
+
+                // Check if message was sent
+                if (notification & AEL_BIT_MSG) {
+                    if ((xQueueReceive(el->msg_queue, &msg, maxBlockTime))
+                            == pdTRUE) {
+                        // Message received!
+                        
+                        // Handle message
+                        el->msg_handler(el, &msg);
+
+                        // Free msg data if provided
+                        if (msg.data)
+                            free(msg.data);
+                    }
+                }
+
+                if (el->status == AEL_STATUS_WAITING ||
+                        el->status == AEL_STATUS_PAUSED)
+                    // Don't reset waiting_for_notify, so task will wait for
+                    // other notifications until status has changed
+                    continue;
+
+                el->wait_for_notify = false;
+            } else 
+                ESP_LOGW(TAG, "[%s] wait_for_notify == true, "
+                        "but no notification received", el->tag);
         }
 
+
         // Process audio data
-        err = el->process(el);
-        if (err != ESP_OK) {
-            // Some error, print debug info
-            ESP_LOGW(TAG, "[%s] Process returned error: %d, %s", el->tag, err,
-                    esp_err_to_name(err));
+        if (el->is_open) {
+            process_res = el->process(el);
+            if (process_res < 0) {
+                // Some error, print debug info
+                // -2 is when no data was written (e.g. buffer full)
+                switch (process_res) {
+                    case -2:
+                        ESP_LOGW(TAG, "[%s] Could not write to output",
+                                el->tag);
+                        break;
+                    default:
+                    ESP_LOGW(TAG, "[%s] Process returned error: %d, %s",
+                            el->tag, process_res,
+                            esp_err_to_name(process_res));
+                }
+            }
         }
     }
 
@@ -91,9 +174,10 @@ void audio_element_task(void *pv) {
     }
     el->is_open = false;
 
+    audio_element_destory(el);
+
     ESP_LOGI(TAG, "[%s] task deleted. Max mem usage: %d", el->tag,
             uxTaskGetStackHighWaterMark(NULL));
-    audio_element_destory(el);
     vTaskDelete(NULL);
 }
 
@@ -111,6 +195,7 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config) {
                 config->tag);
         return NULL;
     }
+    el->buf_size = config->buf_size;
 
     // Set callback functions
     el->open = config->open;
@@ -166,8 +251,12 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config) {
                 configMAX_PRIORITIES, &el->task_handle);
 
         // Create message queue to use in the task
-        el->msg_queue = xQueueCreate(DEFAULT_MSG_QUEUE_LENGTH, sizeof(msg_t));
+        el->msg_queue = xQueueCreate(DEFAULT_MSG_QUEUE_LENGTH,
+                sizeof(audio_element_msg_t));
     }
+
+    el->is_open = false;
+    el->wait_for_notify = false;
 
     return el;
 }
@@ -194,7 +283,8 @@ size_t audio_element_input(audio_element_t *el, char *buf, size_t len) {
         ESP_LOGE(TAG, "[%s] Invalid IO_TYPE: %d", el->tag, el->input.type);
         return ESP_FAIL;
     }
-    
+
+    ESP_LOGD(TAG, "Read %d bytes", bytes_read);
     return bytes_read;
 }
 
@@ -216,11 +306,44 @@ size_t audio_element_output(audio_element_t *el, char *buf, size_t len) {
         if (ret == pdTRUE)
             bytes_written = len;
         else
-            bytes_written = -1;
+            bytes_written = -2;
     } else {
         ESP_LOGE(TAG, "[%s] Invalid IO_TYPE: %d", el->tag, el->output.type);
         return ESP_FAIL;
     }
 
+    ESP_LOGD(TAG, "Written %d bytes", bytes_written);
     return bytes_written;
+}
+
+
+esp_err_t audio_element_notify(audio_element_t *el, int bits) {
+    if (xTaskNotify(el->task_handle, bits, eSetBits) == pdTRUE) {
+        el->wait_for_notify = true;
+        return ESP_OK;
+    }
+    return ESP_FAIL;
+}
+
+
+esp_err_t audio_element_msg_send(audio_element_t *el,
+        audio_element_msg_t *msg) {
+    ESP_LOGD(TAG, "[%s] Sending message %d", el->tag, msg->id);
+    if (xQueueSendToBack(el->msg_queue, msg, DEFAULT_TICKS_TO_WAIT)
+            == pdTRUE) {
+        return audio_element_notify(el, AEL_BIT_MSG);
+    }
+
+    ESP_LOGE(TAG, "[%s] Message queue full!", el->tag);
+    return ESP_FAIL;
+}
+
+
+void audio_element_play(audio_element_t *el) {
+    audio_element_status_set(el, AEL_STATUS_PLAYING);
+}
+
+
+void audio_element_pause(audio_element_t *el) {
+    audio_element_status_set(el, AEL_STATUS_PAUSED);
 }

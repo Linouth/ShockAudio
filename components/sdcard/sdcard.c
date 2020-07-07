@@ -12,9 +12,9 @@ static const char* TAG = "SDCard";
 #define PIN_NUM_CLK  14
 #define PIN_NUM_CS   13
 
-static char* s_mountpoint = NULL;
+static char *s_mountpoint = NULL;
 static int s_slot = -1;
-static sdmmc_card_t* s_card;
+static sdmmc_card_t *s_card;
 
 esp_err_t sdcard_init(char *mountpoint, int max_files) {
     esp_err_t ret;
@@ -53,6 +53,7 @@ esp_err_t sdcard_init(char *mountpoint, int max_files) {
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_NUM_CS;
     slot_config.host_id = host.slot;
+    s_slot = host.slot;
 
     // Mount sdcard
     ret = esp_vfs_fat_sdspi_mount(mountpoint, &host, &slot_config,
@@ -79,6 +80,7 @@ esp_err_t sdcard_destroy() {
     ESP_LOGI(TAG, "Unmounting sdcard");
     if (s_mountpoint) {
         // Unmount sdcard
+        ESP_LOGW(TAG, "%s %p", s_mountpoint, s_card);
         esp_vfs_fat_sdcard_unmount(s_mountpoint, s_card);
         s_mountpoint = NULL;
     } else {
