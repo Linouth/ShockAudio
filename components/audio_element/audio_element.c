@@ -1,4 +1,4 @@
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+/* #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG */
 
 #include "audio_element.h"
 
@@ -165,6 +165,9 @@ void audio_element_task(void *pv) {
                             esp_err_to_name(process_res));
                 }
             }
+        } else {
+            ESP_LOGD(TAG, "[%s] Not yet open", el->tag);
+            vTaskDelay(pdMS_TO_TICKS(1000));
         }
     }
 
@@ -284,7 +287,7 @@ size_t audio_element_input(audio_element_t *el, char *buf, size_t len) {
         return ESP_FAIL;
     }
 
-    ESP_LOGD(TAG, "Read %d bytes", bytes_read);
+    ESP_LOGD(TAG, "[%s] Read %d bytes", el->tag, bytes_read);
     return bytes_read;
 }
 
@@ -312,7 +315,7 @@ size_t audio_element_output(audio_element_t *el, char *buf, size_t len) {
         return ESP_FAIL;
     }
 
-    ESP_LOGD(TAG, "Written %d bytes", bytes_written);
+    ESP_LOGD(TAG, "[%s] Written %d bytes", el->tag, bytes_written);
     return bytes_written;
 }
 

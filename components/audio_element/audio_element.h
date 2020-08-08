@@ -1,6 +1,8 @@
 #ifndef AUDIO_ELEMENT_H
 #define AUDIO_ELEMENT_H
 
+#include "io.h"
+
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -41,13 +43,6 @@ typedef esp_err_t (*el_io_cb)(audio_element_t*);
 typedef esp_err_t (*el_open_cb)(audio_element_t*, void*);
 typedef size_t (*el_process_cb)(audio_element_t*);
 typedef size_t (*el_stream_cb)(audio_element_t*, char*, size_t);
-
-enum io_type {
-    IO_TYPE_NULL,
-    IO_TYPE_CB,
-    IO_TYPE_RB,
-    IO_TYPE_RB_MULTI,
-};
 
 /**
  * Audio Element configuration
@@ -102,19 +97,6 @@ typedef struct audio_element_info {
 }
 
 /**
- * Holds IO ringbuffer(s) or callback function for audio element
- */
-struct io {
-    enum io_type type;
-    union {
-        RingbufHandle_t rb;
-        RingbufHandle_t rbs[MAX_RING_BUFFERS];
-        el_stream_cb func;
-    } data;
-    bool ready;
-};
-
-/**
  * Audio element, used for anything having to do with audio data
  */
 struct audio_element {
@@ -127,8 +109,8 @@ struct audio_element {
     /* esp_err_t (*seek)(); */
 
     // Input/Output ringbuffer/callback function
-    struct io       input;
-    struct io       output;
+    io_t            *input;
+    io_t            *output;
 
     // Task information
     char            *tag;

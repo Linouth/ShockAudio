@@ -11,13 +11,13 @@ typedef struct sdcard_stream_cfg {
     int                 buf_size;
     int                 out_rb_size;
     int                 task_stack;
-    char*               tag;
+    char                *tag;
 } sdcard_stream_cfg_t;
 
 #define DEFAULT_SDCARD_STREAM_CFG() { \
     .type = AEL_STREAM_READER,          \
-    .buf_size = 2048,                   \
-    .out_rb_size = 2048,                \
+    .buf_size = 8192,                   \
+    .out_rb_size = 8192,                \
     .task_stack = 2048,                 \
 }
 
