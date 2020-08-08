@@ -25,19 +25,6 @@ typedef enum {
     AEL_STATUS_STOPPED,  // Task is stopped
 } audio_element_status_t;
 
-typedef enum {
-    AEL_MSG_STATUS_CHANGE,
-    AEL_MSG_STOP,
-    AEL_MSG_COUNT
-} audio_element_msg_id_t;
-
-typedef struct audio_element_msg {
-    audio_element_msg_id_t  id;
-    char                    *data;
-    size_t                  data_len;
-} audio_element_msg_t;
-
-typedef esp_err_t (*el_msg_cb)(audio_element_t*, audio_element_msg_t*);
 
 typedef esp_err_t (*el_io_cb)(audio_element_t*);
 typedef esp_err_t (*el_open_cb)(audio_element_t*, void*);
@@ -51,13 +38,14 @@ typedef struct audio_element_cfg {
     el_open_cb      open;
     el_io_cb        close;
     el_io_cb        destroy;
-    el_process_cb   process;
-    el_stream_cb    read;           // optional
-    el_stream_cb    write;          // optional
-    el_msg_cb       msg_handler;    // optional
+    el_process_cb   process;        // optional
+    io_cb           read;           // optional
+    io_cb           write;          // optional
+    io_t            *input;         // optional
+    io_t            *output;        // optional
 
     int             out_rb_size;    // optional
-    int             buf_size;
+    int             buf_len;
 
     int             task_stack;
 
@@ -67,8 +55,7 @@ typedef struct audio_element_cfg {
 #define DEFAULT_AUDIO_ELEMENT_CFG() {   \
     .read = NULL,                       \
     .write = NULL,                      \
-    .msg_handler = NULL,                \
-    .buf_size = 2048,                   \
+    .buf_len = 2048,                    \
     .task_stack = 2048,                 \
     .tag = "Unnamed"                    \
 }
@@ -105,8 +92,6 @@ struct audio_element {
     el_io_cb        close;
     el_io_cb        destroy;
     el_process_cb   process;
-    el_msg_cb       msg_handler;
-    /* esp_err_t (*seek)(); */
 
     // Input/Output ringbuffer/callback function
     io_t            *input;
@@ -120,12 +105,11 @@ struct audio_element {
     audio_element_status_t status;
 
     bool            is_open;
-    bool            wait_for_notify;
 
     // Data stored
     audio_element_info_t info;
     char            *buf;
-    int             buf_size;
+    int             buf_len;
     void            *data;
 };
 
@@ -143,34 +127,6 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config);
 
 
 /**
- * Get the input data of this audio element
- *
- * @param el    Pointer to audio element
- * @param buf   Buffer to write the input data to
- * @param len   Number of bytes to receive
- *
- * @return
- *      - Number of bytes received
- *      - < 0 for an error
- */
-size_t audio_element_input(audio_element_t *el, char *buf, size_t len);
-
-
-/**
- * Write data to the output of this audio element
- *
- * @param el    Pointer to audio element
- * @param buf   Buffer to write to the output
- * @param len   Number of bytes to write
- *
- * @return
- *      - Number of bytes written
- *      - < 0 for an error
- */
-size_t audio_element_output(audio_element_t *el, char *buf, size_t len);
-
-
-/**
  * Send notification to the task
  *
  * @param el    Pointer to audio element
@@ -183,44 +139,6 @@ size_t audio_element_output(audio_element_t *el, char *buf, size_t len);
 esp_err_t audio_element_notify(audio_element_t *el, int bits);
 
 
-/**
- * Send msg to a running audio elements task
- *
- * @param el    Pointer to audio element
- * @param msg   Pointer to filled out message struct
- *
- * @return
- *      - ESP_OK if successful
- *      - ESP_FAIL otherwise
- */
-esp_err_t audio_element_msg_send(audio_element_t *el, audio_element_msg_t *msg);
-
-
-/**
- * Create audio_element_msg struct to send to task
- *
- * @param id    The audio_element_msg_id to send
- * @param size  Size of the data you want to include
- *
- * @return
- *      - An audio_element_msg struct with the set id, and a data pointer to
- *      'size' allocated bytes
- */
-audio_element_msg_t audio_element_msg_create(audio_element_msg_id_t id, size_t size);
-
-
-/**
- * Set the state of an AEL to playing
- *
- * This is the only way to unblock a 'PAUSED' AEL
- */
-void audio_element_play(audio_element_t *el);
-
-/**
- * Set the state of an AEL to paused
- *
- * call `audio_element_play()` to unpause the AEL
- */
-void audio_element_pause(audio_element_t *el);
+void audio_element_change_status(audio_element_t *el);
 
 #endif

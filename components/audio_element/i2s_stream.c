@@ -2,6 +2,7 @@
 
 #include "audio_element.h"
 #include "i2s_stream.h"
+#include "io.h"
 
 #include "esp_err.h"
 #include "esp_log.h"
@@ -18,7 +19,7 @@ typedef struct {
 
 // TODO: Rewrite this whole function
 #define BUF_COUNT 4
-#define BUF_SIZE 2  // Times DMA
+#define BUF_LEN 2  // Times DMA
 #define DMA_BUF_COUNT 2
 #define DMA_BUF_LEN 1024
 static esp_err_t _i2s_open(audio_element_t *el, void* pv) {
@@ -76,17 +77,8 @@ static esp_err_t _i2s_destroy(audio_element_t *el) {
 }
 
 
-static size_t _i2s_process(audio_element_t *el) {
-    size_t bytes_read = audio_element_input(el, el->buf, el->buf_size);
-    if (bytes_read > 0) {
-        return audio_element_output(el, el->buf, el->buf_size);
-    }
-    return 0;
-}
-
-
-static size_t _i2s_write(audio_element_t *el, char *buf, size_t len) {
-    i2s_stream_t *stream = el->data;
+static size_t _i2s_write(io_t *io, char *buf, size_t len, void *pv) {
+    i2s_stream_t *stream = ((audio_element_t *)pv)->data;
 
     size_t bytes_written;
     i2s_write(stream->i2s_num, buf, len, &bytes_written, portMAX_DELAY);
@@ -97,7 +89,7 @@ static size_t _i2s_write(audio_element_t *el, char *buf, size_t len) {
 }
 
 
-audio_element_t *i2s_stream_init(i2s_stream_cfg_t *config) {
+audio_element_t *i2s_stream_init(audio_element_cfg_t cfg, audio_stream_type_t type) {
     i2s_stream_t *stream = calloc(1, sizeof(i2s_stream_t));
     if (!stream) {
         ESP_LOGE(TAG, "Could not allocate memory!");
@@ -106,19 +98,14 @@ audio_element_t *i2s_stream_init(i2s_stream_cfg_t *config) {
 
     // i2s_init();
 
-    audio_element_cfg_t cfg = DEFAULT_AUDIO_ELEMENT_CFG();
     cfg.open = _i2s_open;
     cfg.close = _i2s_close;
     cfg.destroy = _i2s_destroy;
-    cfg.process = _i2s_process;
-
-    cfg.buf_size = config->buf_size;
-    cfg.task_stack = config->task_stack;
 
     cfg.tag = "i2s";
 
-    stream->type = config->type;
-    if (config->type == AEL_STREAM_WRITER) {
+    stream->type = type;
+    if (type == AEL_STREAM_WRITER) {
         cfg.write = _i2s_write;
     } else {
         ESP_LOGE(TAG, "AEL_STREAM_READER Not implemented yet.");
@@ -128,6 +115,7 @@ audio_element_t *i2s_stream_init(i2s_stream_cfg_t *config) {
     audio_element_t *el = audio_element_init(&cfg);
     if (!el) {
         ESP_LOGE(TAG, "[%s] could not init audio element.", el->tag);
+        return NULL;
     }
     el->data = stream;
 

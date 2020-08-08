@@ -3,24 +3,6 @@
 
 #include "audio_element.h"
 
-/**
- * sdcard_stream configuration struct
- */
-typedef struct sdcard_stream_cfg {
-    audio_stream_type_t type;
-    int                 buf_size;
-    int                 out_rb_size;
-    int                 task_stack;
-    char                *tag;
-} sdcard_stream_cfg_t;
-
-#define DEFAULT_SDCARD_STREAM_CFG() { \
-    .type = AEL_STREAM_READER,          \
-    .buf_size = 8192,                   \
-    .out_rb_size = 8192,                \
-    .task_stack = 2048,                 \
-}
-
 
 /**
  * Initialize sdcard stream
@@ -31,6 +13,6 @@ typedef struct sdcard_stream_cfg {
  *      - audio_element_t if succesful
  *      - NULL otherwise
  */
-audio_element_t *sdcard_stream_init(sdcard_stream_cfg_t *config);
+audio_element_t *sdcard_stream_init(audio_element_cfg_t cfg, audio_stream_type_t type);
 
 #endif

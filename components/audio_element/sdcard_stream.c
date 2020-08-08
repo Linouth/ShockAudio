@@ -85,19 +85,14 @@ static esp_err_t _sdcard_destroy(audio_element_t *el) {
 }
 
 
-static size_t _sdcard_process(audio_element_t *el) {
-    size_t bytes_read = audio_element_input(el, el->buf, el->buf_size);
-    if (bytes_read > 0) {
-        return audio_element_output(el, el->buf, el->buf_size);
-    }
-    return 0;
-}
-
-
-static size_t _sdcard_read(audio_element_t *el, char *buf, size_t len) {
+#include <string.h>
+static size_t _sdcard_read(io_t *io, char *buf, size_t len, void *pv) {
+    audio_element_t *el = pv;
     sdcard_stream_t *stream = el->data;
     audio_element_info_t *info = &el->info;
     int bytes_read = fread(buf, 1, len, stream->file);
+    /* memset(buf, 0, len); */
+    /* int bytes_read = len; */
     if (bytes_read > 0) {
         info->byte_pos += len;
     } else {
@@ -108,20 +103,7 @@ static size_t _sdcard_read(audio_element_t *el, char *buf, size_t len) {
 }
 
 
-esp_err_t audio_element_msg_handler(audio_element_t *el, audio_element_msg_t *msg);
-static esp_err_t _sdcard_msg_handler(audio_element_t *el, audio_element_msg_t *msg) {
-    switch (msg->id) {
-        default:
-            ESP_LOGD(TAG, "[%s] Unhandled message, passing to general handler",
-                    el->tag);
-            return audio_element_msg_handler(el, msg);
-    }
-
-    return ESP_OK;
-}
-
-
-audio_element_t *sdcard_stream_init(sdcard_stream_cfg_t *config) {
+audio_element_t *sdcard_stream_init(audio_element_cfg_t cfg, audio_stream_type_t type) {
     sdcard_stream_t *stream = calloc(1, sizeof(sdcard_stream_t));
     if (!stream) {
         ESP_LOGE(TAG, "Could not allocate memory.");
@@ -130,21 +112,14 @@ audio_element_t *sdcard_stream_init(sdcard_stream_cfg_t *config) {
 
     sdcard_init("/sdcard", 5);
 
-    audio_element_cfg_t cfg = DEFAULT_AUDIO_ELEMENT_CFG();
     cfg.open = _sdcard_open;
     cfg.close = _sdcard_close;
     cfg.destroy = _sdcard_destroy;
-    cfg.process = _sdcard_process;
-    cfg.msg_handler = _sdcard_msg_handler;
-
-    cfg.buf_size = config->buf_size;
-    cfg.out_rb_size = config->out_rb_size;
-    cfg.task_stack = config->task_stack;
 
     cfg.tag = "sdcard";
 
-    stream->type = config->type;
-    if (config->type == AEL_STREAM_READER) {
+    stream->type = type;
+    if (type == AEL_STREAM_READER) {
         cfg.read = _sdcard_read;
     } else {
         // TODO: Add support for file writing
