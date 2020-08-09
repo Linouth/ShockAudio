@@ -33,7 +33,7 @@ General:
     - Directly or through helper functions? 
     - Now it's a mix of both and it's a mess.
     - Done as a result of the new AEL system
-- [  ] Add some status management (Playing, paused, stopped, etc.)
+- [ ] Add some status management (Playing, paused, stopped, etc.)
     - *Not tested yet*
     - Pausing a source should preferably pause the task itself.
     - Maybe add a 'Waiting' status instead of 'stopped'.
