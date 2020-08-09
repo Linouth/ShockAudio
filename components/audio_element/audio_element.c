@@ -1,4 +1,4 @@
-/* #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG */
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 
 #include "audio_element.h"
 
@@ -27,6 +27,7 @@ static const char TAG[] = "AEL";
 
 
 static size_t _default_process(audio_element_t *el) {
+    ESP_LOGV(TAG, "[%s] Default process running", el->tag);
     size_t bytes_read = el->input->read(el->input, el->buf, el->buf_len,
             el);
     if (bytes_read > 0) {
@@ -113,11 +114,14 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config) {
         return NULL;
     }
 
-    el->buf = malloc(config->buf_len);
-    if (el->buf == NULL) {
-        ESP_LOGE(TAG, "[%s] Could not allocate memory for internal buffer",
-                config->tag);
-        return NULL;
+    // Allocate memory for working buffer, if needed
+    if (config->buf_len) {
+        el->buf = malloc(config->buf_len);
+        if (el->buf == NULL) {
+            ESP_LOGE(TAG, "[%s] Could not allocate memory for internal buffer",
+                    config->tag);
+            return NULL;
+        }
     }
     el->buf_len = config->buf_len;
 

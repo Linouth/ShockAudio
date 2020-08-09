@@ -5,6 +5,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/ringbuf.h"
 #include "esp_log.h"
 #include "nvs.h"
 #include "nvs_flash.h"
@@ -15,12 +16,10 @@
 #include "esp_avrc_api.h"
 #include "esp_gap_bt_api.h"
 
-#include "source_bluetooth.h"
-#include "source.h"
-#include "audio_buffer.h"
+#include "bluetooth.h"
+#include "io.h"
 
 static const char* TAG = "Bluetooth";
-
 
 static const char *s_a2d_conn_state_str[] =
     {"Disconnected", "Connecting","Connected", "Disconnecting"};
@@ -29,9 +28,7 @@ static const char *s_a2d_audio_state_str[] =
 
 static esp_avrc_rn_evt_cap_mask_t s_peer_capabilities;
 
-static xQueueHandle s_bt_task_queue = NULL;
-static TaskHandle_t s_bt_task_handle = NULL;
-static source_ctx_t *ctx;
+static RingbufHandle_t s_rb;
 
 
 /**
@@ -42,10 +39,10 @@ bool send_msg(msg_t *msg) {
     if (msg == NULL)
         return false;
 
-    if (xQueueSend(s_bt_task_queue, msg, 10 / portTICK_RATE_MS) != pdTRUE) {
-        ESP_LOGE(TAG, "%s xQueueSend error", __func__);
-        return false;
-    }
+    /* if (xQueueSend(s_bt_task_queue, msg, 10 / portTICK_RATE_MS) != pdTRUE) { */
+    /*     ESP_LOGE(TAG, "%s xQueueSend error", __func__); */
+    /*     return false; */
+    /* } */
 
     return true;
 }
@@ -90,7 +87,7 @@ bool send_passthrough(esp_avrc_pt_cmd_t cmd, esp_avrc_pt_cmd_state_t state) {
 }
 
 
-static void bt_init() {
+void bt_init(io_t *io) {
     ESP_LOGI(TAG, "Initializing Bluetooth");
 
     /* Initialize NVS — it is used to store PHY calibration data */
@@ -114,6 +111,10 @@ static void bt_init() {
     esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_FIXED;
     esp_bt_pin_code_t pin_code = { '1', '2', '3', '4' };
     esp_bt_gap_set_pin(pin_type, 4, pin_code);
+
+    s_rb = io->rb;
+
+    ESP_LOGI(TAG, "Initialized");
 }
 
 static bool is_capable(esp_avrc_rn_event_ids_t cap) {
@@ -248,7 +249,7 @@ void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
 void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
     ESP_LOGV(TAG, "Data received: %d bytes", len);
 
-    source_write(SOURCE_BLUETOOTH, data, len);
+    xRingbufferSendFromISR(s_rb, data, len, NULL);
 }
 
 
@@ -346,13 +347,13 @@ void bt_hdl_a2d_evt(uint16_t event, void *param) {
                         sample_rate = 44100;
                     else if (oct0 & (1 << 4))
                         sample_rate = 48000;
-                    ctx->buffer.format.sample_rate = sample_rate;
+                    /* ctx->buffer.format.sample_rate = sample_rate; */
 
 
-                    uint8_t channels = 2;
-                    if (oct0 & (1 << 3))
-                        channels = 1;
-                    ctx->buffer.format.channels = channels;
+                    /* uint8_t channels = 2; */
+                    /* if (oct0 & (1 << 3)) */
+                    /*     channels = 1; */
+                    /* ctx->buffer.format.channels = channels; */
 
 
                     uint16_t bits_per_sample = 8;
@@ -360,7 +361,7 @@ void bt_hdl_a2d_evt(uint16_t event, void *param) {
                     if (oct1 & (1 << 5) || oct1 & (1 << 4))
                         bits_per_sample = 16;
 
-                    ctx->buffer.format.bits_per_sample = bits_per_sample;
+                    /* ctx->buffer.format.bits_per_sample = bits_per_sample; */
 
                     ESP_LOGI(TAG, "Received configuration: Samplerate %d, bps %d", sample_rate, bits_per_sample);
                 }
@@ -381,6 +382,7 @@ void av_notify_evt_handler(esp_avrc_rn_event_ids_t event, esp_avrc_rn_param_t *p
         {
             ESP_LOGI(TAG, "Playback status changed: 0x%x", param->playback);
             switch(param->playback) {
+                /*
                 case ESP_AVRC_PLAYBACK_STOPPED:
                     ctx->status = STOPPED;
                     break;
@@ -390,6 +392,7 @@ void av_notify_evt_handler(esp_avrc_rn_event_ids_t event, esp_avrc_rn_param_t *p
                 case ESP_AVRC_PLAYBACK_PAUSED:
                     ctx->status = WAITING;
                     break;
+                */
                 default:
                     break;
             }
@@ -552,6 +555,7 @@ void bt_hdl_stack_evt(uint16_t event, void *param) {
  * Source functions
  **/
 
+/*
 static void bt_task(void *arg) {
     ESP_LOGD(TAG, "Starting loop");
 
@@ -597,6 +601,7 @@ void source_bluetooth_init() {
     ctx->status = WAITING;
     ESP_LOGI(TAG, "Initialized");
 }
+*/
 
 
 // TODO: Shutdown function

@@ -47,9 +47,12 @@ static esp_err_t _i2s_open(audio_element_t *el, void* pv) {
     i2s_driver_install(stream->i2s_num, &i2s_config, 0, NULL);
     
     i2s_pin_config_t pin_config = {
-        .bck_io_num = 26,
-        .ws_io_num = 25,
-        .data_out_num = 22,
+        .bck_io_num = 27,
+        .ws_io_num = 33,
+        .data_out_num = 32,
+        /* .bck_io_num = 26, */
+        /* .ws_io_num = 25, */
+        /* .data_out_num = 22, */
         .data_in_num = I2S_PIN_NO_CHANGE
     };
     i2s_set_pin(stream->i2s_num, &pin_config);
@@ -83,7 +86,7 @@ static size_t _i2s_write(io_t *io, char *buf, size_t len, void *pv) {
     size_t bytes_written;
     i2s_write(stream->i2s_num, buf, len, &bytes_written, portMAX_DELAY);
 
-    ESP_LOGD(TAG, "Bytes written to i2s: %d", bytes_written);
+    ESP_LOGV(TAG, "Bytes written to i2s: %d", bytes_written);
 
     return bytes_written;
 }

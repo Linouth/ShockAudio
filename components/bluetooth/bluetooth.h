@@ -1,7 +1,9 @@
-#ifndef SOURCE_BLUETOOTH_H
-#define SOURCE_BLUETOOTH_H
+#ifndef BLUETOOTH_H
+#define BLUETOOTH_H
 
 #include <stdint.h>
+
+#include "io.h"
 
 #define BT_BUF_SIZE 2048*4
 
@@ -35,11 +37,6 @@ enum transmission_layer {
 };
 
 
-/**
- * Initialize Bluetooth source
- * Assigns play and pause functions to the structure. Also creates task.
- * @return  State structure
- */
-void source_bluetooth_init();
+void bt_init(io_t *io);
 
 #endif

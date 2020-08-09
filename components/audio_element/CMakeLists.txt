@@ -1,4 +1,4 @@
-idf_component_register(SRCS "audio_element.c" "sdcard_stream.c" "i2s_stream.c"
+idf_component_register(SRCS "audio_element.c" "sdcard_stream.c" "i2s_stream.c" "a2dp_stream.c"
                             "io.c"
                        INCLUDE_DIRS "."
-                       REQUIRES "sdcard")
+                       REQUIRES "sdcard bt")

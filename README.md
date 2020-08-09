@@ -2,18 +2,38 @@
 
 This firmware is used to make a network/bluetooth speaker using an ESP32. Plan is to make a custom PCB as well.
 
+
+
 ### Todo
+Upgrade to new audio\_element system:
+- [x] Write a generic audio\_element struct/system, which makes use of callback
+  functions to do the actual work. (read/write buffers, init/deinit interfaces)
+- [x] Convert sdcard source to the new system
+    - Still a bit crude
+- [ ] Convert bluetooth source to the new system
+    - [x] A2DP part
+    - [ ] AVRCP part
+- [ ] Convert tone source to the new system
+- [ ] Add a way to have multiple intputs/outputs
+    - Maybe a mux/demux audio\_element item?
+- [ ] Convert mixer to the new system and add support for multiple input streams
+
+
 General:
-- [ ] Sources should write directly to the context buffer, not first write to
+- [x] Sources should write directly to the context buffer, not first write to
   an intermediate buffer.
     - This will safe quite some memory.
-- [ ] Split mixer, so that it only mixes the data, not send it to the renderer.
+    - This can be done now with the new `io_t` struct. Give the input of the
+      next element the output of the previous element.
+- [x] Split mixer, so that it only mixes the data, not send it to the renderer.
   Or at least return the data somehow.
     - This is required to stream the data to other sinks as well.
-- [ ] Think about how the sources are interacting with their context
+    - Done as a result of the new AEL system
+- [x] Think about how the sources are interacting with their context
     - Directly or through helper functions? 
     - Now it's a mix of both and it's a mess.
-- [x] Add some better status management (Playing, paused, stopped, etc.)
+    - Done as a result of the new AEL system
+- [  ] Add some status management (Playing, paused, stopped, etc.)
     - *Not tested yet*
     - Pausing a source should preferably pause the task itself.
     - Maybe add a 'Waiting' status instead of 'stopped'.
@@ -24,43 +44,36 @@ Bluetooth:
 - SBC is pretty good, see [2]
 - [ ] Add some proper volume handling
 - [ ] Add some proper metadata handling (with posibility to export data for e.g. display)
-    - Now receiving metadata, but not saving yet
 - [ ] Add ability for media control from sink
-    - Can now play and pause (not tested yet)
-- [ ] Take another look at the A2D codec config
 - [ ] SSP
 
 Tone:
 - [ ] Add different waveforms?
-    - It now generates a cleanish sine wave. Are other waveforms needed?
 - [ ] Add a simple delay
 - [ ] Add some structure to create melodies or tunes
 - [ ] Add option to set the bits per sample?
     - It now always has a bits per sample of 8, which is probably fine.
 
 Resampling/bitdepth:
-- [ ] Take another look at upsampling, it is kinda buggy still
-    - Especially when samplerates are not multiples of eachother.
+- [ ] Take another look at upsampling.
 - [ ] Downsampling?
     - Might not be needed, since it is always better to upsample other sources,
       than to downsample a high SR source.
     - It can be useful when streaming the data to another sink though. 
 - [ ] Write code to transform bitdepth
-- [ ] Move buffer_to_sample and sample_to_buffer functions to PCM
-    - [ ] Fix endianness? (Will probably be fixed when using the new functions)
 
 SDCard:
 - [ ] Add option to have multiple files playing back
     - Can be useful to simultaneously play back music and some notification
       sound.
-- [ ] Way to simply play back (multiple?) audio files, to signal information
-- [ ] Add method to play back music from SDcard? 
 
 Advanced:
 - [ ] Add some wifi capabilities
+    - Spotify?
+    - Chromecast?
 - [ ] Add spotify connect support 
 - [ ] Add some way for multiple devices to communicate and sync audio (a la sonos)
-- [ ] Add battery management and notification sounds
+- [ ] Add battery management and battery notification sounds
 
 ### Interesting reads
 - [[1]: Audio over Bluetooth: most detailed information about profiles, codecs, and devices](https://habr.com/en/post/456182/)
