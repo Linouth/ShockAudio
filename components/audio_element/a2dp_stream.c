@@ -21,6 +21,11 @@
 
 static const char TAG[] = "A2DP_STREAM";
 
+static const char *s_a2d_conn_state_str[] =
+    {"Disconnected", "Connecting","Connected", "Disconnecting"};
+static const char *s_a2d_audio_state_str[] =
+    {"Suspended", "Stopped", "Started"};
+
 
 typedef void (* evt_hdl_fn_t)(audio_element_t *el, uint16_t event,
         void *param);
@@ -39,9 +44,12 @@ typedef struct {
 static QueueHandle_t   gs_msg_queue;
 static RingbufHandle_t gs_rb;
 
+
 /**
  * BT A2DP functions
  **/
+
+// Helper functions
 
 static inline bool send_msg(msg_t *msg) {
     if (msg == NULL)
@@ -55,6 +63,7 @@ static inline bool send_msg(msg_t *msg) {
     return true;
 }
 
+// Send work to a2dp task to do
 static bool work_dispatch(evt_hdl_fn_t func, uint16_t event, void *param, int param_len) {
     ESP_LOGD(TAG, "Dispatch event 0x%x, param len %d", event, param_len);
 
@@ -74,25 +83,117 @@ static bool work_dispatch(evt_hdl_fn_t func, uint16_t event, void *param, int pa
     return false;
 }
 
+// Secondary handlers
+
+void bt_hdl_notify_evt(esp_avrc_rn_event_ids_t event,
+        esp_avrc_rn_param_t *param) {
+    switch(event) {
+        case ESP_AVRC_RN_PLAY_STATUS_CHANGE:
+        {
+            ESP_LOGI(TAG, "Remote playback status changed: %d",
+                    param->playback);
+            break;
+        }
+
+        case ESP_AVRC_RN_TRACK_CHANGE:
+        {
+            ESP_LOGI(TAG, "Track changed notification");
+            break;
+        }
+
+        case ESP_AVRC_RN_PLAY_POS_CHANGED:
+        {
+            ESP_LOGI(TAG, "Play position changed: %d", param->play_pos);
+            break;
+        }
+
+        case ESP_AVRC_RN_VOLUME_CHANGE:
+        {
+            ESP_LOGI(TAG, "Volume changed: %d", param->play_pos);
+            break;
+        }
+
+        default:
+            ESP_LOGW(TAG, "Unhandled NOTIFY event: %d", event);
+            break;
+    }
+}
+
+// Primary handlers
+
 void bt_hdl_a2d_evt(audio_element_t *el, uint16_t event, void *param) {
-    /* esp_a2d_cb_param_t *a2d = (esp_a2d_cb_param_t *) param; */
+    esp_a2d_cb_param_t *a2d = (esp_a2d_cb_param_t *) param;
+    audio_element_info_t *info = &el->info;
     ESP_LOGD(TAG, "a2d_evt received: 0x%x", event);
 
-    /* switch (event) { */
-    /*     case ESP_A2D_CONNECTION_STATE_EVT: { */
-    /*         uint8_t *bda = a2d->conn_stat.remote_bda; */
-    /*         ESP_LOGI(TAG, "A2DP connection state: %s, [%02x:%02x:%02x:%02x:%02x:%02x]", */
-    /*              s_a2d_conn_state_str[a2d->conn_stat.state], bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]); */
-    /*         if (a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED) { */
-    /*             esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE); */
-    /*             /1* s_state->status = STOPPED; *1/ */
-    /*         } else if (a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED){ */
-    /*             esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE); */
-    /*             /1* s_state->status = PLAYING; *1/ */
-    /*         } */
-    /*         break; */
-    /*     } */
+    switch (event) {
+        case ESP_A2D_CONNECTION_STATE_EVT:
+        {
+            uint8_t *bda = a2d->conn_stat.remote_bda;
+            ESP_LOGI(TAG, "A2DP connection state: %s, [%02x:%02x:%02x:%02x:%02x:%02x]",
+                 s_a2d_conn_state_str[a2d->conn_stat.state], bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+            if (a2d->conn_stat.state ==
+                    ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
+                esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE,
+                        ESP_BT_GENERAL_DISCOVERABLE);
 
+            } else if (a2d->conn_stat.state ==
+                    ESP_A2D_CONNECTION_STATE_CONNECTED){
+                esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE,
+                        ESP_BT_NON_DISCOVERABLE);
+
+            }
+            break;
+        }
+
+        case ESP_A2D_AUDIO_CFG_EVT:
+        {
+            ESP_LOGD(TAG, "Audio Codec configured:");
+
+            if (a2d->audio_cfg.mcc.type == ESP_A2D_MCT_SBC) {
+                uint32_t sample_rate = 16000;
+
+                // Retireve current sample rate 
+                uint8_t oct0 = a2d->audio_cfg.mcc.cie.sbc[0];
+                if (oct0 & (1 << 6))
+                    sample_rate = 32000;
+                else if (oct0 & (1 << 5))
+                    sample_rate = 44100;
+                else if (oct0 & (1 << 4))
+                    sample_rate = 48000;
+                info->sample_rate = sample_rate;
+
+                // Retrieve current number of channels
+                uint8_t channels = 2;
+                if (oct0 & (1 << 3))
+                    channels = 1;
+                info->channels = channels;
+
+                // Retrieve current bits per second
+                uint16_t bits_per_sample = 8;
+                uint8_t oct1 = a2d->audio_cfg.mcc.cie.sbc[1];
+                if (oct1 & (1 << 5) || oct1 & (1 << 4))
+                    bits_per_sample = 16;
+                info->bps = bits_per_sample;
+
+                ESP_LOGI(TAG, "Received configuration: Samplerate %d, bps %d", sample_rate, bits_per_sample);
+            }
+            break;
+        }
+
+        case ESP_A2D_AUDIO_STATE_EVT:
+        {
+            ESP_LOGI(TAG, "A2DP Audio state: %s",
+                    s_a2d_audio_state_str[a2d->audio_stat.state]);
+            break;
+        }
+
+        default:
+            ESP_LOGW(TAG, "[%s] unhandled event %d", el->tag, event);
+            break;
+    }
+
+    /* switch (event) { */
     /*     case ESP_A2D_AUDIO_STATE_EVT: { */
     /*         ESP_LOGI(TAG, "A2DP audio state: %s", s_a2d_audio_state_str[a2d->audio_stat.state]); */
     /*         switch(a2d->audio_stat.state) { */
@@ -111,46 +212,85 @@ void bt_hdl_a2d_evt(audio_element_t *el, uint16_t event, void *param) {
     /*         } */
     /*         break; */
     /*     } */
-
-    /*     case (ESP_A2D_AUDIO_CFG_EVT): */
-    /*         { */
-    /*             ESP_LOGD(TAG, "Audio Codec configured:"); */
-    /*             if (a2d->audio_cfg.mcc.type == ESP_A2D_MCT_SBC) { */
-    /*                 uint32_t sample_rate = 16000; */
-
-    /*                 uint8_t oct0 = a2d->audio_cfg.mcc.cie.sbc[0]; */
-    /*                 if (oct0 & (1 << 6)) */
-    /*                     sample_rate = 32000; */
-    /*                 else if (oct0 & (1 << 5)) */
-    /*                     sample_rate = 44100; */
-    /*                 else if (oct0 & (1 << 4)) */
-    /*                     sample_rate = 48000; */
-    /*                 /1* ctx->buffer.format.sample_rate = sample_rate; *1/ */
-
-
-    /*                 /1* uint8_t channels = 2; *1/ */
-    /*                 /1* if (oct0 & (1 << 3)) *1/ */
-    /*                 /1*     channels = 1; *1/ */
-    /*                 /1* ctx->buffer.format.channels = channels; *1/ */
-
-
-    /*                 uint16_t bits_per_sample = 8; */
-    /*                 uint8_t oct1 = a2d->audio_cfg.mcc.cie.sbc[1]; */
-    /*                 if (oct1 & (1 << 5) || oct1 & (1 << 4)) */
-    /*                     bits_per_sample = 16; */
-
-    /*                 /1* ctx->buffer.format.bits_per_sample = bits_per_sample; *1/ */
-
-    /*                 ESP_LOGI(TAG, "Received configuration: Samplerate %d, bps %d", sample_rate, bits_per_sample); */
-    /*             } */
-    /*             break; */
-    /*         } */
-
-    /*     default: */
-    /*         ESP_LOGW(TAG, "%s unhandled event %d", __func__, event); */
-    /*         break; */
     /* } */
 }
+
+// Handle received commands from controller
+static void bt_hdl_rc_tg_evt(audio_element_t *el, uint16_t event,
+        void *param) {
+    esp_avrc_tg_cb_param_t *rc = (esp_avrc_tg_cb_param_t *) param;
+
+    switch(event) {
+        case ESP_AVRC_TG_CONNECTION_STATE_EVT:
+        {
+            uint8_t *bda = rc->conn_stat.remote_bda;
+            ESP_LOGI(TAG, "AVRC tg conn_state evt: %s, addr[%02x:%02x:%02x:%02x:%02x:%02x]",
+                    s_a2d_conn_state_str[rc->conn_stat.connected],
+                    bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+            break;
+        }
+
+        case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC register event notification: 0x%x, param: 0x%x", 
+                    rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
+            break;
+        }
+
+        case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT:
+        {
+            ESP_LOGI(TAG, "Set absolute volume cmd received. val: %d",
+                    rc->set_abs_vol.volume);
+            break;
+        }
+
+        default:
+            ESP_LOGE(TAG, "%s unhandled evt %d", __func__, event);
+            break;
+    }
+}
+
+static void bt_hdl_rc_ct_evt(audio_element_t *el, uint16_t event,
+        void *param) {
+    ESP_LOGD(TAG, "%s avrc controller evt %d", __func__, event);
+    esp_avrc_ct_cb_param_t *rc = (esp_avrc_ct_cb_param_t *) (param);
+
+    switch (event) {
+        case ESP_AVRC_TG_CONNECTION_STATE_EVT:
+        {
+            uint8_t *bda = rc->conn_stat.remote_bda;
+            ESP_LOGI(TAG, "AVRC ct conn_state evt: %s, addr[%02x:%02x:%02x:%02x:%02x:%02x]",
+                    s_a2d_conn_state_str[rc->conn_stat.connected],
+                    bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+            break;
+        }
+
+        case ESP_AVRC_CT_METADATA_RSP_EVT:
+        {
+            ESP_LOGI(TAG, "AVRC Metadata RSP: attr id 0x%x, %s",
+                    rc->meta_rsp.attr_id, rc->meta_rsp.attr_text);
+            free(rc->meta_rsp.attr_text);
+            break;
+        }
+
+        case ESP_AVRC_CT_CHANGE_NOTIFY_EVT:
+        {
+            ESP_LOGD(TAG, "%s Received CHANGE_NOTIFY_EVT %d", __func__,
+                    rc->change_ntf.event_id);
+
+            bt_hdl_notify_evt(rc->change_ntf.event_id,
+                    &rc->change_ntf.event_parameter);
+            break;
+        }
+
+        default:
+            ESP_LOGW(TAG, "Unhandled ct_evt: 0x%x", event);
+            break;
+    }
+}
+
+
+// Callbacks
 
 static void bt_gap_cb(esp_bt_gap_cb_event_t event,
         esp_bt_gap_cb_param_t *param) {
@@ -193,6 +333,22 @@ static void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
     ESP_LOGV(TAG, "[a2dp] Data received: %d bytes", len);
 
     xRingbufferSend(gs_rb, data, len, portMAX_DELAY);
+}
+
+static void bt_rc_ct_cb(esp_avrc_ct_cb_event_t event,
+        esp_avrc_ct_cb_param_t *param) {
+    // TODO: actual implementation
+    
+    work_dispatch(bt_hdl_rc_ct_evt, event, param,
+            sizeof(esp_avrc_ct_cb_param_t));
+}
+
+static void bt_rc_tg_cb(esp_avrc_tg_cb_event_t event,
+        esp_avrc_tg_cb_param_t *param) {
+    // TODO: actual implementation
+    
+    work_dispatch(bt_hdl_rc_tg_evt, event, param,
+            sizeof(esp_avrc_tg_cb_param_t));
 }
 
 static void bt_init() {
@@ -245,9 +401,23 @@ static esp_err_t _a2dp_open(audio_element_t *el, void* pv) {
     esp_bt_gap_register_callback(bt_gap_cb);
 
     // AVRCP Controller callback
+    // (Received response from controller)
+    ESP_ERROR_CHECK(esp_avrc_ct_init());
+    esp_avrc_ct_register_callback(bt_rc_ct_cb);
+    // AVRCP Target callback
     // (Received cmd from controller)
-    /* ESP_ERROR_CHECK(esp_avrc_ct_init()); */
-    /* esp_avrc_ct_register_callback(bt_rc_ct_cb); */
+    ESP_ERROR_CHECK(esp_avrc_tg_init());
+    esp_avrc_tg_register_callback(bt_rc_tg_cb);
+
+    esp_avrc_rn_evt_cap_mask_t evt_set = {0};
+
+    esp_avrc_tg_get_rn_evt_cap(ESP_AVRC_RN_CAP_ALLOWED_EVT, &evt_set);
+    ESP_LOGI(TAG, "supported cap: 0x%x", evt_set.bits);
+
+    esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_SET, &evt_set, ESP_AVRC_RN_VOLUME_CHANGE);
+    /* esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_SET, &evt_set, ESP_AVRC_RN_PLAY_STATUS_CHANGE); */
+    /* esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_SET, &evt_set, ESP_AVRC_RN_PLAY_POS_CHANGED); */
+    ESP_ERROR_CHECK(esp_avrc_tg_set_rn_evt_cap(&evt_set));
 
 
     // A2DP Sink

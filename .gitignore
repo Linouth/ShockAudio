@@ -4,6 +4,7 @@ compile_commands.json
 .vscode/
 .clangd/
 .ipynb_checkpoints/
+.gdb_history
+.session.vim
 tags
 components/**/test/
-.gdb_history

@@ -14,8 +14,7 @@
 #define DEFAULT_MSG_QUEUE_LENGTH 16
 
 enum notification_bit {
-    AEL_BIT_MSG            = 1,
-    AEL_BIT_STATUS_CHANGED = 2,  // Set but unused for now
+    AEL_BIT_STATUS_CHANGED = 1,  // Set but unused for now
 };
 
 
@@ -56,7 +55,9 @@ void audio_element_task(void *pv) {
     int process_res;
     BaseType_t notify_res;
     uint32_t notification = 0;
+    bool paused = false;
 
+    el->status = AEL_STATUS_PLAYING;
     el->task_running = true;
     while (el->task_running) {
 
@@ -151,6 +152,7 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config) {
                 config->out_rb_size);
 
     el->tag = config->tag;
+    el->status = AEL_STATUS_STOPPED;
 
     // Configure audio element data information
     audio_element_info_t info = DEFAULT_AUDIO_ELEMENT_INFO();
@@ -173,4 +175,15 @@ esp_err_t audio_element_notify(audio_element_t *el, int bits) {
         return ESP_OK;
     }
     return ESP_FAIL;
+}
+
+
+// TODO: Implement this
+void audio_element_change_status(audio_element_t *el,
+        audio_element_status_t status) {
+    ESP_LOGI(TAG, "[%s] Setting status to: %s", el->tag,
+            audio_element_status_str[el->status]);
+    el->status = status;
+    /* if (audio_element_notify(el, AEL_BIT_STATUS_CHANGED)) */
+    /*     el->status = status; */
 }

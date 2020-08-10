@@ -139,6 +139,7 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config);
 esp_err_t audio_element_notify(audio_element_t *el, int bits);
 
 
-void audio_element_change_status(audio_element_t *el);
+void audio_element_change_status(audio_element_t *el,
+        audio_element_status_t status);
 
 #endif

@@ -49,6 +49,7 @@ static esp_err_t _sdcard_open(audio_element_t *el, void* pv) {
         info->bytes = ftell(stream->file);
         fseek(stream->file, 0, SEEK_SET);
         ESP_LOGI(TAG, "[%s] File is %d bytes", el->tag, info->bytes);
+        info->byte_pos = 0;
     } else {
         ESP_LOGE(TAG, "[%s] sdcard_stream only support AEL_STREAM_READER for now.",
                 el->tag);
@@ -91,14 +92,11 @@ static size_t _sdcard_read(io_t *io, char *buf, size_t len, void *pv) {
     sdcard_stream_t *stream = el->data;
     audio_element_info_t *info = &el->info;
     int bytes_read = fread(buf, 1, len, stream->file);
-    /* memset(buf, 0, len); */
-    /* int bytes_read = len; */
-    if (bytes_read > 0) {
-        info->byte_pos += len;
-    } else {
+    if (bytes_read == 0) {
         ESP_LOGW(TAG, "[%s] No data left", el->tag);
     }
 
+    info->byte_pos += bytes_read;
     return bytes_read;
 }
 
