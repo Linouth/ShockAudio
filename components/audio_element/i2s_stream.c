@@ -76,6 +76,8 @@ static esp_err_t _i2s_destroy(audio_element_t *el) {
     ESP_LOGI(TAG, "Destroying I2S");
     i2s_driver_uninstall(stream->i2s_num);
 
+    free(stream);
+
     return ESP_OK;
 }
 

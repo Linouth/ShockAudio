@@ -10,14 +10,23 @@ Upgrade to new audio\_element system:
   functions to do the actual work. (read/write buffers, init/deinit interfaces)
 - [x] Convert sdcard source to the new system
     - Still a bit crude
-- [ ] Convert bluetooth source to the new system
+- [x] Convert bluetooth source to the new system
     - [x] A2DP part
-    - [ ] AVRCP part
+    - [x] AVRCP part
+    - This needs to be implemented more (state change, save pos in info struct,
+      etc.), but it is converted to the new system.
 - [ ] Convert tone source to the new system
 - [ ] Add a way to have multiple intputs/outputs
     - Maybe a mux/demux audio\_element item?
 - [ ] Convert mixer to the new system and add support for multiple input streams
-
+- [ ] Pass stream info (info struct) to next element in the line
+    - Idea: have a 'paused' bool in the info struct, and send a notif. when
+      this bool is changed. For simple elements, just pause the thread (inf
+      wait for paused to toggle). For more complex, have a specific `_pause` cb
+      function.
+    - The info struct should pass a pointer to the 'paused' bool, but info such
+      as samplerate and bitrate should be copied as that can change per audio
+      element.
 
 General:
 - [x] Sources should write directly to the context buffer, not first write to
