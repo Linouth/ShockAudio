@@ -23,15 +23,14 @@ typedef struct {
 #define DMA_BUF_COUNT 2
 #define DMA_BUF_LEN 1024
 static esp_err_t _i2s_open(audio_element_t *el, void* pv) {
-    audio_element_info_t info = el->info;
     i2s_stream_t *stream = el->data;
 
-    ESP_LOGE(TAG, "%d", info.bps);
+    ESP_LOGE(TAG, "%d", el->info->bps);
 
     i2s_config_t i2s_config = {
         .mode = I2S_MODE_MASTER | I2S_MODE_TX,
-        .sample_rate = info.sample_rate,
-        .bits_per_sample = info.bit_depth,
+        .sample_rate = el->info->sample_rate,
+        .bits_per_sample = el->info->bits,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB, */
         .dma_buf_count = DMA_BUF_COUNT,

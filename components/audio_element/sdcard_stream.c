@@ -18,7 +18,7 @@ typedef struct sdcard_stream {
 
 
 static esp_err_t _sdcard_open(audio_element_t *el, void* pv) {
-    audio_element_info_t *info =  &el->info;
+    audio_element_info_t *info = el->info;
     sdcard_stream_t *stream = el->data;
 
     // Check for file to open
@@ -86,11 +86,10 @@ static esp_err_t _sdcard_destroy(audio_element_t *el) {
 }
 
 
-#include <string.h>
 static size_t _sdcard_read(io_t *io, char *buf, size_t len, void *pv) {
     audio_element_t *el = pv;
     sdcard_stream_t *stream = el->data;
-    audio_element_info_t *info = &el->info;
+    audio_element_info_t *info = el->info;
     int bytes_read = fread(buf, 1, len, stream->file);
     if (bytes_read == 0) {
         ESP_LOGW(TAG, "[%s] No data left", el->tag);

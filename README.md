@@ -1,6 +1,7 @@
 # ShockAudio <sub>(Will probably change name later)</sub>
 
-This firmware is used to make a network/bluetooth speaker using an ESP32. Plan is to make a custom PCB as well.
+This firmware is used to make a network/bluetooth speaker using an ESP32.
+Plan is to make a custom PCB as well.
 
 
 
@@ -16,17 +17,18 @@ Upgrade to new audio\_element system:
     - This needs to be implemented more (state change, save pos in info struct,
       etc.), but it is converted to the new system.
 - [ ] Convert tone source to the new system
-- [ ] Add a way to have multiple intputs/outputs
+- [ ] Add a way to have multiple inputs/outputs
     - Maybe a mux/demux audio\_element item?
+    - Many > one will just be the mixer (e.g. `mixer_add_element()`).
+    - One > Many has to be a new element type? This will be necessary if you
+      want to send the data to multiple streams (e.g. i2s and tcp).
 - [ ] Convert mixer to the new system and add support for multiple input streams
 - [ ] Pass stream info (info struct) to next element in the line
+    - Done, except for: 
     - Idea: have a 'paused' bool in the info struct, and send a notif. when
       this bool is changed. For simple elements, just pause the thread (inf
       wait for paused to toggle). For more complex, have a specific `_pause` cb
       function.
-    - The info struct should pass a pointer to the 'paused' bool, but info such
-      as samplerate and bitrate should be copied as that can change per audio
-      element.
 
 General:
 - [x] Sources should write directly to the context buffer, not first write to
@@ -48,6 +50,9 @@ General:
     - Maybe add a 'Waiting' status instead of 'stopped'.
     - When setting status to 'stopped' the task should stop. To start it again,
       the init function has to be called again.
+- [ ] Create decoders (mp3, aac(?) and ogg vorbis (spotify))
+    - Add codec\_type to info struct.
+    - Have decoder just pass input to output if no decoding necessary.
 
 Bluetooth:
 - SBC is pretty good, see [2]

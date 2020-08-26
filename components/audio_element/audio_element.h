@@ -32,42 +32,16 @@ typedef size_t (*el_process_cb)(audio_element_t*);
 typedef size_t (*el_stream_cb)(audio_element_t*, char*, size_t);
 
 /**
- * Audio Element configuration
- */
-typedef struct audio_element_cfg {
-    el_open_cb      open;
-    el_io_cb        close;
-    el_io_cb        destroy;
-    el_process_cb   process;        // optional
-    io_cb           read;           // optional
-    io_cb           write;          // optional
-    io_t            *input;         // optional
-    io_t            *output;        // optional
-
-    int             out_rb_size;    // optional
-    int             buf_len;
-
-    int             task_stack;
-
-    char            *tag;
-} audio_element_cfg_t;
-
-#define DEFAULT_AUDIO_ELEMENT_CFG() {   \
-    .read = NULL,                       \
-    .write = NULL,                      \
-    .buf_len = 2048,                    \
-    .task_stack = 2048,                 \
-    .tag = "Unnamed"                    \
-}
-#define DEFAULT_OUT_RB_SIZE 2048
-
-/**
  * Information about the data stored and returned by the audio element
+ *
+ * This struct is passed through the chain from input stream to output stream,
+ * except with a AEL that modifies specific fields. Such a AEL stores the 
+ * previous info struct, and passes a new one.
  */
 typedef struct audio_element_info {
     int     sample_rate;
     int     channels;
-    int     bit_depth;
+    int     bits;
     int     bps;
     size_t  byte_pos;
     size_t  bytes;
@@ -80,8 +54,39 @@ typedef struct audio_element_info {
 #define DEFAULT_AUDIO_ELEMENT_INFO() {  \
     .sample_rate = 44100,               \
     .channels = 2,                      \
-    .bit_depth = 16,                    \
+    .bits = 16,                    \
 }
+
+/**
+ * Audio Element configuration
+ */
+typedef struct audio_element_cfg {
+    el_open_cb      open;
+    el_io_cb        close;
+    el_io_cb        destroy;
+    el_process_cb   process;        // optional; set by stream
+    io_cb           read;           // optional; set by stream
+    io_cb           write;          // optional; set by stream
+    io_t            *input;         // optional; set by link func
+    io_t            *output;        // optional; set by link func
+    audio_element_info_t *info;     // optional; set by link func
+
+    int             out_rb_size;    // optional; set by user
+    int             buf_len;        // optional; set by user
+
+    int             task_stack;     // optional (0 if no thread needed)
+
+    char            *tag;
+} audio_element_cfg_t;
+
+#define DEFAULT_AUDIO_ELEMENT_CFG() {   \
+    .read = NULL,                       \
+    .write = NULL,                      \
+    .buf_len = 2048,                    \
+    .task_stack = 2048,                 \
+    .tag = "Unnamed"                    \
+}
+#define DEFAULT_OUT_RB_SIZE 2048
 
 /**
  * Audio element, used for anything having to do with audio data
@@ -107,7 +112,7 @@ struct audio_element {
     bool            is_open;
 
     // Data stored
-    audio_element_info_t info;
+    audio_element_info_t *info;
     char            *buf;
     int             buf_len;
     void            *data;
@@ -124,6 +129,25 @@ struct audio_element {
  *     - NULL
  */
 audio_element_t *audio_element_init(audio_element_cfg_t *config);
+
+/**
+ * Helper function to link an AEL to a new AEL by setting its config.
+ *
+ * @param from      Pointer to AEL
+ * @param to        Pointer to config used for the new AEL
+ */
+void audio_element_cfg_link(audio_element_t *from, audio_element_cfg_t *to);
+
+
+/**
+ * Helper function to clear a cfg and set it to default values.
+ *
+ * TODO: This function can probably be much more cleanly, and might not be
+ * needed at all.
+ *
+ * @param cfg       Pointer to config to clear
+ */
+void audio_element_cfg_clear(audio_element_cfg_t *cfg);
 
 
 /**

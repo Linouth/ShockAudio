@@ -36,11 +36,12 @@ static size_t _default_process(audio_element_t *el) {
 }
 
 
-static void audio_element_destory(audio_element_t *el) {
+static void audio_element_destroy(audio_element_t *el) {
     if (el->destroy)
         el->destroy(el);
 
     free(el->buf);
+    free(el->info);
 
     io_destroy(el->input);
     io_destroy(el->output);
@@ -100,7 +101,7 @@ void audio_element_task(void *pv) {
     }
     el->is_open = false;
 
-    audio_element_destory(el);
+    audio_element_destroy(el);
 
     ESP_LOGI(TAG, "[%s] task deleted. Max mem usage: %d", el->tag,
             uxTaskGetStackHighWaterMark(NULL));
@@ -154,9 +155,17 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config) {
     el->tag = config->tag;
     el->status = AEL_STATUS_STOPPED;
 
-    // Configure audio element data information
-    audio_element_info_t info = DEFAULT_AUDIO_ELEMENT_INFO();
-    el->info = info;
+    if (config->info) {
+        // Use info from previous AEL in chain
+        el->info = config->info;
+    } else {
+        // Allocate info struct, and set default values
+        el->info = calloc(1, sizeof(audio_element_info_t));
+        // TODO: Have a more general way of changing the default settings
+        el->info->sample_rate = 44100;
+        el->info->channels = 2;
+        el->info->bits = 16;
+    }
     
     // Create task if needed
     if (config->task_stack > 0) {
@@ -165,8 +174,20 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config) {
     }
 
     el->is_open = false;
-
     return el;
+}
+
+
+void audio_element_cfg_link(audio_element_t *from, audio_element_cfg_t *to) {
+    to->input = from->output;
+    to->info = from->info;
+}
+
+
+void audio_element_cfg_clear(audio_element_cfg_t *cfg) {
+    audio_element_cfg_t def = DEFAULT_AUDIO_ELEMENT_CFG();
+    memset(cfg, 0, sizeof(audio_element_cfg_t));
+    memcpy(cfg, &def, sizeof(audio_element_cfg_t));
 }
 
 

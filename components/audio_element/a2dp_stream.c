@@ -192,7 +192,7 @@ void bt_hdl_notify_evt(esp_avrc_rn_event_ids_t event,
 
 void bt_hdl_a2d_evt(audio_element_t *el, uint16_t event, void *param) {
     esp_a2d_cb_param_t *a2d = (esp_a2d_cb_param_t *) param;
-    audio_element_info_t *info = &el->info;
+    audio_element_info_t *info = el->info;
     ESP_LOGD(TAG, "a2d_evt received: 0x%x", event);
 
     switch (event) {
