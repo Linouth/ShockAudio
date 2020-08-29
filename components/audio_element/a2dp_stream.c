@@ -47,7 +47,7 @@ typedef struct {
 
 
 static QueueHandle_t   gs_msg_queue;
-static RingbufHandle_t gs_rb;
+static io_t            *gs_output;
 
 
 /**
@@ -192,7 +192,8 @@ void bt_hdl_notify_evt(esp_avrc_rn_event_ids_t event,
 
 void bt_hdl_a2d_evt(audio_element_t *el, uint16_t event, void *param) {
     esp_a2d_cb_param_t *a2d = (esp_a2d_cb_param_t *) param;
-    audio_element_info_t *info = el->info;
+    audio_element_info_t *info = el->output->user_data;
+    audio_element_info_t new_info = { 0 };
     ESP_LOGD(TAG, "a2d_evt received: 0x%x", event);
 
     switch (event) {
@@ -230,21 +231,22 @@ void bt_hdl_a2d_evt(audio_element_t *el, uint16_t event, void *param) {
                     sample_rate = 44100;
                 else if (oct0 & (1 << 4))
                     sample_rate = 48000;
-                info->sample_rate = sample_rate;
+                new_info.sample_rate = sample_rate;
 
                 // Retrieve current number of channels
                 uint8_t channels = 2;
                 if (oct0 & (1 << 3))
                     channels = 1;
-                info->channels = channels;
+                new_info.channels = channels;
 
                 // Retrieve current bits per second
                 uint16_t bits_per_sample = 8;
                 uint8_t oct1 = a2d->audio_cfg.mcc.cie.sbc[1];
                 if (oct1 & (1 << 5) || oct1 & (1 << 4))
                     bits_per_sample = 16;
-                info->bps = bits_per_sample;
+                new_info.bits = bits_per_sample;
 
+                audio_element_set_info(info, new_info);
                 ESP_LOGI(TAG, "Received configuration: Samplerate %d, bps %d", sample_rate, bits_per_sample);
             }
             break;
@@ -460,7 +462,7 @@ static void bt_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param) {
 static void bt_a2d_data_cb(const uint8_t *data, uint32_t len) {
     ESP_LOGV(TAG, "[a2dp] Data received: %d bytes", len);
 
-    xRingbufferSend(gs_rb, data, len, portMAX_DELAY);
+    gs_output->write(gs_output, (char *)data, len, NULL);
 }
 
 static void bt_rc_ct_cb(esp_avrc_ct_cb_event_t event,
@@ -516,7 +518,7 @@ static esp_err_t _a2dp_open(audio_element_t *el, void* pv) {
     // This is needed so that the bluetooth callback functions can access this
     // queue and the output buffer
     gs_msg_queue = stream->msg_queue;
-    gs_rb = el->output->rb;
+    gs_output = el->output;
     
     // Set the device name
     ESP_LOGI(TAG, "[%s] Setting device name to %s", el->tag, device_name);
@@ -566,7 +568,7 @@ static esp_err_t _a2dp_open(audio_element_t *el, void* pv) {
 // TODO: Test
 static esp_err_t _a2dp_close(audio_element_t *el) {
     gs_msg_queue = NULL;
-    gs_rb = NULL;
+    gs_output = NULL;
 
     // Deinit a2dp and avrcp
     ESP_ERROR_CHECK(esp_avrc_ct_deinit());
@@ -631,15 +633,14 @@ audio_element_t *a2dp_stream_init(audio_element_cfg_t cfg, audio_stream_type_t t
     cfg.tag = "a2dp";
 
     stream->type = type;
-    if (type == AEL_STREAM_READER) {
-        /* cfg.read = _a2dp_read; */
-    } else {
+    if (type == AEL_STREAM_WRITER) {
         ESP_LOGE(TAG, "AEL_STREAM_WRITER Not implemented.");
         return NULL;
     }
 
     // Input is not used, as the output RB is being written by a cb
-    cfg.input = (io_t *)1;
+    cfg.input = IO_UNUSED;
+    // Output is implicitly created with default rb read and write cb functions
 
     audio_element_t *el = audio_element_init(&cfg);
     if (!el) {

@@ -23,12 +23,8 @@ Upgrade to new audio\_element system:
     - One > Many has to be a new element type? This will be necessary if you
       want to send the data to multiple streams (e.g. i2s and tcp).
 - [ ] Convert mixer to the new system and add support for multiple input streams
-- [ ] Pass stream info (info struct) to next element in the line
-    - Done, except for: 
-    - Idea: have a 'paused' bool in the info struct, and send a notif. when
-      this bool is changed. For simple elements, just pause the thread (inf
-      wait for paused to toggle). For more complex, have a specific `_pause` cb
-      function.
+- [ ] Update: Add 'user data' var to `io_t` struct which will hold the AEL
+  `info_t` struct corresponding to that specific buffer
 
 General:
 - [x] Sources should write directly to the context buffer, not first write to

@@ -1,3 +1,10 @@
+/**
+ * TODO: Proper usage guide (in readme)
+ *
+ * NOTE: The AEL is responsible for setting the output->user_data variable
+ * to the pcm info of the audio stream
+ */
+
 #ifndef AUDIO_ELEMENT_H
 #define AUDIO_ELEMENT_H
 
@@ -5,6 +12,7 @@
 
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "freertos/ringbuf.h"
 
@@ -39,12 +47,13 @@ typedef size_t (*el_stream_cb)(audio_element_t*, char*, size_t);
  * previous info struct, and passes a new one.
  */
 typedef struct audio_element_info {
+    xSemaphoreHandle lock;
+    bool    changed;
     int     sample_rate;
     int     channels;
-    int     bits;
-    int     bps;
-    size_t  byte_pos;
-    size_t  bytes;
+    int     bits;  // bits per sample
+    /* size_t  byte_pos; */
+    /* size_t  bytes; */
 
     // Pass these through void* in open()
     /* int     duration;   // Used for 'tone' */
@@ -112,7 +121,6 @@ struct audio_element {
     bool            is_open;
 
     // Data stored
-    audio_element_info_t *info;
     char            *buf;
     int             buf_len;
     void            *data;
@@ -165,5 +173,9 @@ esp_err_t audio_element_notify(audio_element_t *el, int bits);
 
 void audio_element_change_status(audio_element_t *el,
         audio_element_status_t status);
+
+void audio_element_set_info(io_t *io, audio_element_info_t new_info);
+
+audio_element_info_t audio_element_get_info(io_t *io);
 
 #endif

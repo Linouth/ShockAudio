@@ -24,13 +24,12 @@ typedef struct {
 #define DMA_BUF_LEN 1024
 static esp_err_t _i2s_open(audio_element_t *el, void* pv) {
     i2s_stream_t *stream = el->data;
-
-    ESP_LOGE(TAG, "%d", el->info->bps);
+    audio_element_info_t info = audio_element_get_info(el->input);
 
     i2s_config_t i2s_config = {
         .mode = I2S_MODE_MASTER | I2S_MODE_TX,
-        .sample_rate = el->info->sample_rate,
-        .bits_per_sample = el->info->bits,
+        .sample_rate = info.sample_rate,
+        .bits_per_sample = info.bits,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         /* .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_LSB, */
         .dma_buf_count = DMA_BUF_COUNT,
@@ -59,7 +58,6 @@ static esp_err_t _i2s_open(audio_element_t *el, void* pv) {
     ESP_LOGI(TAG, "Initialization done");
 
     el->is_open = true;
-
     return ESP_OK;
 }
 
@@ -83,6 +81,12 @@ static esp_err_t _i2s_destroy(audio_element_t *el) {
 
 static size_t _i2s_write(io_t *io, char *buf, size_t len, void *pv) {
     i2s_stream_t *stream = ((audio_element_t *)pv)->data;
+    audio_element_info_t *info = io->user_data;
+
+    if (info->changed) {
+        i2s_set_clk(stream->i2s_num, info->sample_rate, info->bits, info->channels);
+        info->changed = false;
+    }
 
     size_t bytes_written;
     i2s_write(stream->i2s_num, buf, len, &bytes_written, portMAX_DELAY);

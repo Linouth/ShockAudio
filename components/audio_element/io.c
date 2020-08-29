@@ -58,6 +58,8 @@ void io_destroy(io_t *io) {
     if (io->rb) {
         vRingbufferDelete(io->rb);
     }
+    if (io->user_data)
+        free(io->user_data);
     free(io);
     io = NULL;
 }

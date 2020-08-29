@@ -18,8 +18,8 @@ typedef struct sdcard_stream {
 
 
 static esp_err_t _sdcard_open(audio_element_t *el, void* pv) {
-    audio_element_info_t *info = el->info;
     sdcard_stream_t *stream = el->data;
+    size_t bytes;
 
     // Check for file to open
     char *uri = (char*)pv;
@@ -46,10 +46,9 @@ static esp_err_t _sdcard_open(audio_element_t *el, void* pv) {
 
         // Find filesize
         fseek(stream->file, 0, SEEK_END);
-        info->bytes = ftell(stream->file);
+        bytes = ftell(stream->file);
         fseek(stream->file, 0, SEEK_SET);
-        ESP_LOGI(TAG, "[%s] File is %d bytes", el->tag, info->bytes);
-        info->byte_pos = 0;
+        ESP_LOGI(TAG, "[%s] File is %d bytes", el->tag, bytes);
     } else {
         ESP_LOGE(TAG, "[%s] sdcard_stream only support AEL_STREAM_READER for now.",
                 el->tag);
@@ -89,13 +88,11 @@ static esp_err_t _sdcard_destroy(audio_element_t *el) {
 static size_t _sdcard_read(io_t *io, char *buf, size_t len, void *pv) {
     audio_element_t *el = pv;
     sdcard_stream_t *stream = el->data;
-    audio_element_info_t *info = el->info;
     int bytes_read = fread(buf, 1, len, stream->file);
     if (bytes_read == 0) {
         ESP_LOGW(TAG, "[%s] No data left", el->tag);
     }
 
-    info->byte_pos += bytes_read;
     return bytes_read;
 }
 
