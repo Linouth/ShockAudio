@@ -25,6 +25,8 @@ Upgrade to new audio\_element system:
 - [ ] Convert mixer to the new system and add support for multiple input streams
 - [ ] Update: Add 'user data' var to `io_t` struct which will hold the AEL
   `info_t` struct corresponding to that specific buffer
+    - Done, _Needs testing though_
+- [ ] ! Add a way to pause AEL threads (infinitite loops from clogging the cpu)
 
 General:
 - [x] Sources should write directly to the context buffer, not first write to
@@ -41,9 +43,7 @@ General:
     - Now it's a mix of both and it's a mess.
     - Done as a result of the new AEL system
 - [ ] Add some status management (Playing, paused, stopped, etc.)
-    - *Not tested yet*
     - Pausing a source should preferably pause the task itself.
-    - Maybe add a 'Waiting' status instead of 'stopped'.
     - When setting status to 'stopped' the task should stop. To start it again,
       the init function has to be called again.
 - [ ] Create decoders (mp3, aac(?) and ogg vorbis (spotify))

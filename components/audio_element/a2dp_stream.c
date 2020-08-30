@@ -192,7 +192,6 @@ void bt_hdl_notify_evt(esp_avrc_rn_event_ids_t event,
 
 void bt_hdl_a2d_evt(audio_element_t *el, uint16_t event, void *param) {
     esp_a2d_cb_param_t *a2d = (esp_a2d_cb_param_t *) param;
-    audio_element_info_t *info = el->output->user_data;
     audio_element_info_t new_info = { 0 };
     ESP_LOGD(TAG, "a2d_evt received: 0x%x", event);
 
@@ -246,7 +245,7 @@ void bt_hdl_a2d_evt(audio_element_t *el, uint16_t event, void *param) {
                     bits_per_sample = 16;
                 new_info.bits = bits_per_sample;
 
-                audio_element_set_info(info, new_info);
+                audio_element_set_info(el->output, new_info);
                 ESP_LOGI(TAG, "Received configuration: Samplerate %d, bps %d", sample_rate, bits_per_sample);
             }
             break;

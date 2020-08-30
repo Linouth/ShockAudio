@@ -13,8 +13,7 @@ static const char TAG[] = "IO";
 
 size_t _read_rb(io_t *io, char *buf, size_t len, void *pv) {
     size_t bytes_read;
-    void *data = xRingbufferReceiveUpTo(io->rb, &bytes_read,
-            IO_TICKS_TO_WAIT, len);
+    void *data = xRingbufferReceiveUpTo(io->rb, &bytes_read, 10, len);
     if (data) {
         memcpy(buf, data, bytes_read);
         vRingbufferReturnItem(io->rb, data);

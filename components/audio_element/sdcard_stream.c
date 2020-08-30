@@ -91,6 +91,7 @@ static size_t _sdcard_read(io_t *io, char *buf, size_t len, void *pv) {
     int bytes_read = fread(buf, 1, len, stream->file);
     if (bytes_read == 0) {
         ESP_LOGW(TAG, "[%s] No data left", el->tag);
+        el->close(el);
     }
 
     return bytes_read;

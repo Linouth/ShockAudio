@@ -30,16 +30,18 @@ static size_t _default_process(audio_element_t *el) {
     ESP_LOGV(TAG, "[%s] Default process running", el->tag);
     audio_element_info_t *input_info = el->input->user_data;
 
+    /*
     if (input_info->changed) {
         ESP_LOGD(TAG, "[%s] input info changed, updating output info",
                 el->tag);
         audio_element_set_info(el->output, audio_element_get_info(el->input));
         input_info->changed = false;
     }
+    */
 
     size_t bytes_read = el->input->read(el->input, el->buf, el->buf_len, el);
     if (bytes_read > 0) {
-        return el->output->write(el->output, el->buf, el->buf_len, el);
+        return el->output->write(el->output, el->buf, bytes_read, el);
     }
     return 0;
 }
@@ -181,7 +183,7 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config) {
     else {
         el->input = audio_element_io_create(config->read, config->write, 0);
         if (!el->input) {
-            ESP_LOGE(TAG, "Could not create input buffer");
+            ESP_LOGE(TAG, "[%s] Could not create input buffer", config->tag);
             return NULL;
         }
     }
@@ -194,7 +196,7 @@ audio_element_t *audio_element_init(audio_element_cfg_t *config) {
         el->output = audio_element_io_create(config->read, config->write,
                 config->out_rb_size);
         if (!el->output) {
-            ESP_LOGE(TAG, "Could not create output buffer");
+            ESP_LOGE(TAG, "[%s] Could not create output buffer", config->tag);
             return NULL;
         }
     }
