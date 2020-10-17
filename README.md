@@ -17,16 +17,18 @@ Upgrade to new audio\_element system:
     - This needs to be implemented more (state change, save pos in info struct,
       etc.), but it is converted to the new system.
 - [ ] Convert tone source to the new system
-- [ ] Add a way to have multiple inputs/outputs
-    - Maybe a mux/demux audio\_element item?
-    - Many > one will just be the mixer (e.g. `mixer_add_element()`).
-    - One > Many has to be a new element type? This will be necessary if you
+    - This needs a rewrite anyways
+- [ ] For now Add a way to have multiple inputs/outputs
+    - [x] Many > one will just be the mixer (e.g. `mixer_add_element()`). 
+    - [ ] One > Many has to be a new element type? This will be necessary if you
       want to send the data to multiple streams (e.g. i2s and tcp).
-- [ ] Convert mixer to the new system and add support for multiple input streams
-- [ ] Update: Add 'user data' var to `io_t` struct which will hold the AEL
+- [x] Convert mixer to the new system and add support for multiple input streams
+- [x] Update: Add 'user data' var to `io_t` struct which will hold the AEL
   `info_t` struct corresponding to that specific buffer
     - Done, _Needs testing though_
-- [ ] ! Add a way to pause AEL threads (infinitite loops from clogging the cpu)
+    - This is probably not the best way to do this. I am thinking about just
+      taking the control and info parts out of the audio_element completely.
+- [ ] ! Add a way to pause AEL threads (infinite loops from clogging the cpu)
 
 General:
 - [x] Sources should write directly to the context buffer, not first write to
